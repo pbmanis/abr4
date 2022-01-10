@@ -1,10 +1,10 @@
 function [ch1, ch2, err] = calstim(nRecordPoints)
-%% Load and record signal to do a calibration 
-%% assumes stimulus waveform is already in STIM.wave and that 
-%% AO and RP are already setup.
-%% 5/1/2010 Paul B. Manis
-%% converted to matlab session interface to NIDAQ 9/28/2016
-%%
+% Load and record signal to do a calibration 
+% assumes stimulus waveform is already in STIM.wave and that 
+% AO and RP are already setup.
+% 5/1/2010 Paul B. Manis
+% converted to matlab session interface to NIDAQ 9/28/2016
+%
 global AO STIM RP
 
 % fprintf(1, 'Stim clock: %8.1f usec, NIFreq: %8.1f Hz, Pts: %d\n', ...
@@ -20,7 +20,7 @@ if isempty(RP)
     RP=actxcontrol('rpco.x', [5 5 26 26]);
     if(RP.ConnectRP2('USB',1) == 0)
         error('Failed to connect to RP2.1');
-    end;
+    end
 end
 
 % disp 'rp setup'
@@ -44,6 +44,9 @@ lastindex = curindex;
 % 
 % 
 % end
+% fprintf(1, "trace duration: %.3f", TraceDuration);
+% disp(STIM.sample_freq)
+% disp(nRecordPoints)
 pause(TraceDuration)
 RP.SoftTrg(2);
 % disp 'stopped'
