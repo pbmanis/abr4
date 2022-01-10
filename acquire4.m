@@ -50,7 +50,7 @@ if nargin > 0 && (strcmp(cmd, 'microphone') ...
         correctCal = 1; % allows us to check the calibration.
         cmd = 'calibrate';
     end;
-    calibrations(cmd, correctCal)
+    calibrations(cmd, correctCal);
     return;
 end;
 

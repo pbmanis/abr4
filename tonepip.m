@@ -8,43 +8,44 @@ function [varargout] = tonepip(amp, freq, delay, duration, rf, phase0, sampfreq,
 % 
 
 if nargout == 0 
-    fprintf(2, 'amp: %f  freq: %f  delay = %f  duration = %f  rf = %f  ipi = %f  np = %f\n',...
+   fprintf(2, 'amp: %f  freq: %f  delay = %f  duration = %f  rf = %f  ipi = %f  np = %f\n',...
        amp, freq, delay, duration, rf, ipi, np);
-end;
+   return
+end
 
 if(nargin < 4)
     fprintf(2, 'Tonepip requires at least 4 arguments: amp, freq, delay, duration\n');
     return;
-end;
+end
 if(nargin == 4)
     phase0 = 0; % set defaults
     rf = 5;
     np = 1;
     ipi = 20;
     alternate  = 0;
-end;
+end
 if(nargin < 5)
     phase0 = 0;
     np = 1;
     ipi = 20;
     alternate  = 0;
-end;
+end
 if(nargin == 6)
     sampfreq = 500000; % sec....
     np = 1;
     ipi = 20;
     alternate  = 0;
-end;
+end
 % assume that ipi, np and alternate are set if more than 6 arguments.
 if(nargin > 10)
     disp('too many arguments to tonepip');
     return;
-end;
+end
 if(nargout == 0)
     plotflag = 1;
 else
     plotflag = 0;
-end;
+end
 
 clock = 1000/sampfreq; % calculate the sample clock rate - msec (khz)
 uclock = 1000*clock; % microsecond clock
@@ -61,16 +62,16 @@ fil = zeros((jdur+2*nfilter_points),1);
 
 for i = 1:nfilter_points % rising filter shape
     fil(i) = sin(2*pi*fo*(i-1)*clock)^2; % filter
-end;
+end
 for j = i+1:i+jdur % main part shape
     fil(j) = 1;
-end;
+end
 
 i = 0;
 for k = j+1:j+nfilter_points % decay shape
     fil(k) = fil(nfilter_points+i); %reverse the rising phase
     i = i - 1;
-end;
+end
 %Fs = 1000/clock;
 %phi = 0; % initial phase
 tfil = 0:clock:(length(fil)-1)*clock;
@@ -79,7 +80,7 @@ if rf > 0.0
     wf = ws.*fil; % this makes the stimulus pulse (sine, ramped)
 else
     wf = ws;
-end;
+end
 nwf = length(wf);
 %
 % next put in context and make an output waveform
@@ -95,39 +96,39 @@ else
         w = zeros(np_ipi, 1);
     else
         w = zeros(jd+nwf, 1);
-    end;
-end;
+    end
+end
 
 for i = 1:np
     j0 = jd + (i-1)*id + 1;
     if jd == 0 && rf == 0.0
         j0 = 1 + (i-1)*id;
-    end;
+    end
     
     if(alternate && mod(i,2) == 1)
         sign = -1;
     else
         sign = -1;
-    end;
+    end
     ij=1;
     for j = j0:j0+nwf-1
         w(j) = sign*wf(ij);
         ij = ij + 1;
-    end;
+    end
     
-end;
+end
 w = w(1:length(w)-jd);  % cut tail points out of waveform so that we can
                         % concatenate without a delay.
 
 if(nargout >= 1)
     varargout{1} = w;
-end;
+end
 if(nargout >= 2)
     varargout{2} = uclock;
-end;
+end
 if(nargout >= 3)
     varargout{3} = fil;
-end;
+end
 
 %fprintf(1, 'Stim Duration: %f pts,   %f msec\n', length(w), length(w)*clock);
 if(plotflag)
@@ -141,13 +142,13 @@ if(plotflag)
     else
         figure(ff);
         cla;
-    end;
+    end
     plot(t, w);
     hold on
     plot(tfil, fil, 'r');
     plot(tfil, ws, 'g');
     
     plot(tfil, wf, 'c');
-end;
+end
 
 return;

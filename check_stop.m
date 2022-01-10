@@ -6,7 +6,7 @@ stopindicator = 0;
 
 if stopflag == 1 % force stop
     STOP = 1;
-end;
+end
 
 if(STOP == 1) % while waiting, check for stop.
     RP.SoftTrg(0); % invoke(RP, 'softtrg', 0);
