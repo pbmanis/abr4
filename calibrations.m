@@ -23,11 +23,14 @@ if strcmp(cmd, 'calibrate')
         case {'EC1', 'ES1'}
             spkr_freq = 1000*[1,2,3,4,5,6,7,8,9,10,12,14,16,20,22,24,26,28,30,32,36,38,42,44,48,52,56,60,64]; % speaker frequency list
         case 'MF1'
-%             spkr_freq = 1000*[100, 96, 92, 88, 84, 82, 78, 76, 72, 68, 64, 56, 48, 44, 42, 38, 36, 32, 28, 24, 20, 18, 16, 12, 8, 6, 4, 2, 1]; % speaker frequency list
-              spkr_freq = 1000*[87, 71.7, 58.8, 48, 37.5, 32.4, 28.0, 21.8, 16, 14.0, 12.0, 10.0, 8, 6.0, 4, 3.0, 2, 1]; % speaker frequency list
+   %          spkr_freq = 1000*[87, 84, 82, 78, 76, 72, 68, 64, 60, 56, 52, ...
+    %             48, 44, 42, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 11,...
+    %             10,9, 8, 7, 6, 5, 4, 2, 1]; % speaker frequency list
+%              spkr_freq = 1000*[87, 71.7, 58.8, 48, 37.5, 32.4, 28.0, 24.0, 20.5, 16, 14.0, 12.0, 10.0, 8, 6.0, 4, 3.0, 2, 1]; % speaker frequency list
 %            spkr_freq = 1000*[ 12, 20.0, 35.0, 45.0, 80.0]; % speaker frequency list for quick testing.
 %            spkr_freq = 1000*logspace(log10(0.5), log10(192.513/2.2), 27);
 %              spkr_freq = [12500.0];
+              spkr_freq = 1000*[20, 16, 12.5, 10, 8, 6.3, 5, 4, 3.15, 2.5, 2, 1.6, 1.25, 1.0];
              
         otherwise
             fprintf(2, 'Speaker type not known\n');
@@ -73,9 +76,11 @@ switch calmode
 %         M = zeros(length(spkr_freq), 1);
 %         p_3a = zeros(length(spkr_freq), 1);
         dbspl = zeros(length(spkr_freq), 1);
+        dbspl_bp = zeros(length(spkr_freq), 1);
         amnf = zeros(length(spkr_freq), 1);
-        dbsplnf = zeros(length(spkr_freq), 1);
+        dbspl_nf = zeros(length(spkr_freq), 1);
         Vrms = zeros(length(spkr_freq), 1);
+        Vrms_bp = zeros(length(spkr_freq), 1);
         Vrms_nf = zeros(length(spkr_freq), 1);
         attndB = zeros(length(spkr_freq), 1)+SPKR.attn;
         maxdB = zeros(length(spkr_freq), 1);
@@ -110,8 +115,9 @@ switch calmode
                 fprintf(1, "Mic cal date: %s     Mic RefSig: %7.2f Mic mVPerPa:%7.2f\n", ...
                     MIC.Date, MIC.RefSig, MIC.mVPerPa);
                 % column headers
-                fprintf(2, '%8s\t %8s\t %12s\t %12s\t %12s\t %12s\t %12s\t %12s\n', ...
-                    'F(Hz)', 'maxfreq', 'Mic(mV)','NF(mv)', 'dBSPL','Attn(dB)', 'Max dBSPL', 'Noise floor'); %, spkr_freq(i), mfreq, amp(i), dbspl(i), attndB(i));
+                fprintf(2, '%8s\t%8s\t%7s  %6s  %6s %7s %7s %8s %7s %7s\n', ...
+                    'F(Hz)', 'maxfreq', 'Mic(mV)','BP(mV)', 'NF(mv)', 'dBSPL','dbBP', ...
+                    'Attn(dB)', 'Max dB', 'NF(dB)');
                 
             end
             if correctCal == 1
@@ -134,28 +140,18 @@ switch calmode
             set_attn(-1);
             [~, ch2nf, ~] = calstim(nRecordPoints); % make a noise floor measurement
             ch2nf = filter(notchfilter, ch2nf);
-%             fprintf(1, "data collected");
-%             fprintf(1, "%d  %d  %d", length(trec), ts1, ts2);
-%             return
-            % bandpass filter the data around the test frequency
-            f = spkr_freq(i);
-            third = power(2.0, 1/5.);  % fifth octave filter
-            flow = spkr_freq(i)/third;
-            fhigh = spkr_freq(i)*third;
-            bpfreqs = [flow, fhigh];
+
+
+            bpfreqs = splfuncs.octave_calc(spkr_freq(i), 8, STIM.sample_freq);
 %             fprintf(1, "spkr: %f  bp: %f  to %f\n", spkr_freq(i), bpfreqs(1), bpfreqs(2));
-            ybp = bandpass(ch2(ts1:ts2), bpfreqs, STIM.sample_freq, ...
+            ybp = bandpass(ch2, bpfreqs, STIM.sample_freq, ...
                 'StopbandAttenuation', 60, "Steepness", 0.9);
-            ynf = bandpass(ch2nf(ts1:ts2), bpfreqs, STIM.sample_freq,...
+            ynf = bandpass(ch2nf, bpfreqs, STIM.sample_freq,...
                 'StopbandAttenuation', 60, "Steepness", 0.9);
 %             fprintf(1, "bp calculated");
-%             amp_fft = rms(ybp);
+            Vrms_bp(i) = rms(ybp);
 %             [~, imax_fft] = max(ybp);
-            
-%             range = 1.0;
-            % disp 'calculate'
-            % clippts = 2*floor((rise_fall/1000.)*STIM.sample_freq);
-%             fr = [spkr_freq(i)*range];
+
             [amp_cosinor, fr_cosinor] = compute_cosinors(spkr_freq(i), trec(ts1:ts2), ch2(ts1:ts2));
             [~, k] = max(amp_cosinor);
             mfreq = fr_cosinor(k);
@@ -173,11 +169,10 @@ switch calmode
             plot(tstim, STIM.wave);
             % data in raw recording, same window
             subplot(2,2,2);
-            plot(trec(ts1:ts2), ch2(ts1:ts2), 'k-');
-            hold on;
+            winplot(trec, ch2, ts1, ts2, 'k-', 'b-');
             % bandpassed signals
-            plot(trec(ts1:ts2), ybp, 'r-');
-            plot(trec(ts1:ts2), ynf, 'c-');
+            winplot(trec, ybp, ts1, ts2, 'r-', 'm-');
+            winplot(trec, ynf, ts1, ts2, 'c-', 'y-');
             % spectra in the region of the signal
             subplot(2,2,3);
             plot(bp_freqs, bp_data, 'b-');
@@ -186,27 +181,35 @@ switch calmode
             xlim([spkr_freq(i)-1000.0, spkr_freq(i) + 1000.0])
             
             % disp 'calc done'
-            Vrms(i) = amp(i)/sqrt(2); % convert cosinor to RMS % rms(ybp); % rms(ch2)
-            Vrms_nf(i) = amnf(i)/sqrt(2); % rms(ynf); 
+            Vrms_bp(i) = Vrms_bp(i);
+            Vrms(i) = amp(i)/sqrt(2); % convert cosinor to RMS
+            Vrms_nf(i) = amnf(i); % rms(ynf); 
             % old calculation, based on cosinor amplitudes
 %             dbspl(i) = MIC.RefSig + 20*log10(amp(i)/MIC.Vrms); %#ok<NODEF>
 %             dbsplnf(i) = MIC.RefSig + 20*log10(2*amnf(i)/MIC.Vrms);
 %           new calculation based on rms in narrow window around the
 %           stimulus frequency.
 %             fprintf(2, 'Vrms: %10.6e  Vref: %9.6f mic gain: %.1f\n', Vrms(i), MIC.Vref_bp, MIC.Gain);
-            dbspl(i) = MIC.Gain + MIC.RefSig + 20.0*log10(Vrms(i)/MIC.Vref_bp); 
-            dbsplnf(i) = MIC.Gain + MIC.RefSig + 20.0*log10(Vrms_nf(i)/MIC.Vref_bp);
+            dbspl(i) =  splfuncs.compute_spl(Vrms(i), MIC);
+            dbspl_bp(i) = splfuncs.compute_spl(Vrms_bp(i), MIC); 
+            dbspl_nf(i) = splfuncs.compute_spl(Vrms_nf(i), MIC);
             maxdB(i) = dbspl(i) + attndB(i);
-            fprintf(2, '%8.2f\t%8.2f\t%12.3f\t%12.3f\t%12.1f\t%12.1f\t%12.3f\t%12.3f\t%12.3f\n', ...
-                spkr_freq(i), mfreq, 1000.*Vrms(i), 1000.*Vrms_nf(i), ...
-                dbspl(i), attndB(i), maxdB(i), dbsplnf(i), amp(i)*1000.);
+            fprintf(2, '%8.1f\t%8.1f\t%7.3f\t%7.3f\t%7.3f\t%7.1f\t%7.1f\t%7.1f\t%7.1f\t%7.1f\n', ...
+                spkr_freq(i), mfreq, 1000*Vrms(i), 1000*Vrms_bp(i), 1000*Vrms_nf(i), ...
+                dbspl(i),dbspl_bp(i), attndB(i), maxdB(i), dbspl_nf(i));
         end
-        %clf;
+        spl_freqs = (min(spkr_freq):2000:max(spkr_freq));
+        SPLatF = interp1(spkr_freq, dbspl, spl_freqs, 'spline'); 
+        SPLatF_bp = interp1(spkr_freq, dbspl_bp, spl_freqs, 'spline'); 
         subplot(2,2,4);
-        stem(spkr_freq, dbspl, 'ko-', 'fill');
+        plot(spl_freqs, SPLatF, 'g-');
+        hold on;
+        plot(spl_freqs, SPLatF_bp, 'c-');
+        stem(spkr_freq, dbspl, 'go-', 'fill');
+        stem(spkr_freq, dbspl_bp, 'co-');
         hold on;
         sp = [spkr_freq fliplr(spkr_freq)];
-        ndp = [dbsplnf' 0*fliplr(dbsplnf)'];
+        ndp = [dbspl_nf' 0*fliplr(dbspl_nf)'];
         ndp(ndp < 0) = 0; % clip at 0 dB spl..
         patch(sp, ndp, [0.6, 0.1, 0.1]);
         set(gca, 'XScale', 'log');
@@ -215,8 +218,10 @@ switch calmode
             CAL.Freqs = spkr_freq;
             CAL.maxdB = maxdB;
             CAL.dBSPL = dbspl;
-            CAL.dBSPL_nf = dbsplnf;
+            CAL.dBSPL_bp = dbspl_bp;
+            CAL.dBSPL_nf = dbspl_nf;
             CAL.Vmeas = Vrms;
+            CAL.Vmeas_bp = Vrms_bp;
             CAL.Gain = 20; % dB setting microphone amplifier gain
             CAL.CalAttn = SPKR.attn; % attenuator setting at which calibration was done
             CAL.Speaker = Speaker;
@@ -233,8 +238,10 @@ switch calmode
             CHKCAL.Freqs = spkr_freq;
             CHKCAL.maxdB = maxdB;
             CHKCAL.dBSPL = dbspl;
-            CHKCAL.dBSPL_nf = dbsplnf;
+            CHKCAL.dBSPL_nf = dbspl_nf;
+            CHKCAL.dBSPL_bp = dbspl_bp;
             CHKCAL.Vmeas = Vrms;
+            CAL.Vmeas_bp = Vrms_bp;
             CHKCAL.attndB = attndB;
             CHKCAL.Gain = 20; % dB setting microphone amplifier gain
             CHKCAL.CalAttn = SPKR.attn; % attenuator setting at which calibration was done
@@ -284,7 +291,7 @@ switch calmode
         [~, imax_c] = max(amp_c);
         
         fprintf(1, "bandpass start... ");
-        [ybp] = bandpass(ch2, [940, 1020], STIM.sample_freq, 'StopbandAttenuation', 60, "Steepness", 1.0);
+        [ybp] = bandpass(ch2, [940, 1020], STIM.sample_freq, 'StopbandAttenuation', 60, "Steepness", 0.8);
         plot(trec, ybp, 'k-', 'LineWidth', 0.5);
         fprintf(1, '  bpdone ...');
         [bp_data, bp_freqs] = periodogram(ybp,rectwin(length(ybp)),length(ybp), STIM.sample_freq);
@@ -319,12 +326,12 @@ switch calmode
         MIC.Vref_bp = rms(ybp);
         MIC.Microphone = Mic;
         MIC.Date = date;
-        MIC.dBPerVPa = 20.0*log10(MIC.Vref_bp) - MIC.Gain - (MIC.RefSig - 94.0); % sensitivity.
-        MIC.mVPerPa = 1000*10.0^(MIC.dBPerVPa/20.0);
+        MIC.dBPerVPa = splfuncs.compute_dBPerVPa(MIC.Vref_bp, MIC);
+        MIC.mVPerPa = splfuncs.compute_mVPerPa(MIC);
         
-        fprintf(2, '\nMIC Vref (RMS): %12.6f Vrms (raw trace)\n', MIC.Vrms);
-        fprintf(2, 'MIC Vref (FFT): %12.6f Vmax at %12.3f Hz (bandpassed), \n', MIC.Vref_bp, bp_freqs(imax_bp));
-        fprintf(2, 'MIC Vref (cos): %12.6f Vmax at %12.3f Hz, \n', MIC.Vref_c, fr_c(imax_c));
+        fprintf(2, '\nMIC Vref (RMS): %12.6f Vrms(V) (raw trace)\n', MIC.Vrms);
+        fprintf(2, 'MIC Vref (FFT): %12.6f Vmax(V) at %12.3f Hz (bandpassed), \n', MIC.Vref_bp, bp_freqs(imax_bp));
+        fprintf(2, 'MIC Vref (cos): %12.6f Vmax(V) at %12.3f Hz, \n', MIC.Vref_c, fr_c(imax_c));
         fprintf(1, '---------------------------------------------------------\n');
         switch Mic
             case '7012#39279'
@@ -338,7 +345,7 @@ switch calmode
         fprintf(1, '1/4\" 7016 mic (SN  10252):  %7.2f mV/Pa, -48.3 dB re 1V/Pa\n', 3.85);
         end
         fprintf(2, 'Measured Transfer factor:   %7.2f mV/Pa, %5.1f dB re 1V/Pa\n', MIC.mVPerPa, MIC.dBPerVPa);
-        fprintf(2, 'Measured with Mic Amp Gain = 20.0dB, Standard is %.1f dB\n, bandpassed', MIC.RefSig);
+        fprintf(2, 'Measured with Mic Amp Gain = 20.0dB, Standard is %.1f dB, bandpassed\n', MIC.RefSig);
         fprintf(1, '--------------------------------------------------------\n');
         
         if ~testmode
@@ -357,34 +364,17 @@ function [amp, fr] = compute_cosinors(fr, trec, ch2)
     theta = zeros(length(fr), 1);
     M = zeros(length(fr), 1);
     p_3a = zeros(length(fr), 1);
-%     fprintf(1, "Cosinor starts... ");
     for i = 1:length(fr)
-%         fprintf(1, 'computing i=%3d f=%7.3f\r', i, fr(i));
         [amp(i), theta(i), M(i), p_3a(i)] = cosinor(trec', ch2', 2.0*pi*fr(i), 0.05);
     end
-%     fprintf(1, "Cosinor done\n");
 
     return
 end
 
-%{
-function [amp_fft, fr_fft, x_pks, y_pks] = compute_fft(ch2, Fs, pad)
-    Y = fft([detrend(ch2), zeros(1, length(ch2)*pad)]*(pad+1));  % only 1/5
-    L = length(ch2)*(pad + 1);
-    P2 = abs(Y/L);
-    amp_fft = P2(1:L/2+1);
-    amp_fft(2:end-1) = 2.0*amp_fft(2:end-1);
-    fr_fft = Fs*(0:(L/2))/L;
-    j = find(fr_fft >= 940 & fr_fft <= 1040);
-    [pks, locs] = findpeaks(amp_fft(j));
-    x_pks = fr_fft(j(1)-1+locs);
-    y_pks = pks;
-    return 
+function winplot(x, y, ts1, ts2, wincolor, outsidecolor)
+plot(x(1:ts1), y(1:ts1), outsidecolor);
+hold on
+plot(x(ts1:ts2), y(ts1:ts2), wincolor);
+plot(x(ts2:end), y(ts2:end), outsidecolor);
 end
-%}
 
-%{
-function [Y] = HPF(vdata, Fs)
-    Y = highpass(vdata,100.0,Fs, "Steepness", 0.8, "ImpulseResponse", "iir", StopbandAttenuation=80.0)
-end
-%}

@@ -24,7 +24,7 @@ switch mode
             otherwise
         end
     otherwise
-end;
+end
 msg{n} = sprintf('\nSpeaker: \n   Speaker is %s', Speaker);
 n = n + 1;
 msg{n} = sprintf('   Speaker driver attenuation is -6dB');
@@ -33,7 +33,7 @@ msg{n} = sprintf('\nAre your settings Correct?');
 button = questdlg(msg,'Hardware Settings','Yes','No','Yes') ;
 if strcmp(button,'No')
     err = 1;
-end;
+end
 
 end
 

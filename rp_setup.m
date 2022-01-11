@@ -11,7 +11,7 @@ err = 0;
 if strcmp(HARDWARE, 'None')
     err = 1;
     return;
-end;
+end
 mode = 'abr';
 % see if the desired action is to STOP the RP2.1 from running
 if nargin > 1 && strcmp(varargin{1}, 'stop')
@@ -23,25 +23,26 @@ if nargin > 1 && strcmp(varargin{1}, 'microphone')
     mode = 'microphone';
 end
 
+% fprintf(1, "Mode: %s", mode);
 
 if RP.ClearCOF() == 0
     error('failed to clear cof');
-end;
+end
 thisdir = pwd;
 switch mode
     case 'abr'
         if (RP.LoadCOFsf([thisdir '\abrs.rcx'], STIM.RP2COFFlag) == 0)
             error ('failed to load abrs.rcx file');
-        end;
+        end
 
     case 'microphone'
         STIM.RP2COFFlag=5;
         if (RP.LoadCOFsf([thisdir '\mic_record.rcx'], STIM.RP2COFFlag) == 0)
             error ('failed to load mic_record.rcx file');
-        end;
+        end
     otherwise
         error('commmand to rp_setup not recognized');
-end;
+end
 
 sfreq=RP.GetSFreq();
 % fprintf(1, 'RP loaded, mode=%s, true sample frequency: %.6f hz\n',mode,  sfreq);
@@ -67,7 +68,7 @@ if RP.SetTagVal('REC_Size', nRecordPoints) == 0
    fprintf(2, 'rp_setup: Failed to set tag value rec_size with n_record_points\n');
    err = 1;
    return;
-end;
+end
 
 if nargin > 1 && strcmp(varargin{1}, 'start')
     if RP.SoftTrg(1) == 0 % start.
@@ -77,7 +78,7 @@ if nargin > 1 && strcmp(varargin{1}, 'start')
         STOP = 0;
         err = 1;
         return;
-    end;
+    end
 end
 end
     
