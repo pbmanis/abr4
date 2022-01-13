@@ -9,9 +9,9 @@ function [data, err] = acquire4(cmd, varargin)
 % 3/29/07 new version.
 % samples individual traces, not using avgbuf.
 % also samples 2 channels, to monitor microphone output as well.
-% modified so that HW.STIM.block allows rapid multiple reps to be collected in
+% modified so that STIM.block allows rapid multiple reps to be collected in
 % sequence.
-% the number of reps in a block is HW.STIM.np, the interval between reps is
+% the number of reps in a block is STIM.np, the interval between reps is
 % ipi. the waveform is sent out the 14-bit dac.
 %5/25/2007 pbm.
 %
@@ -28,7 +28,7 @@ function [data, err] = acquire4(cmd, varargin)
 % works with Matlab 2016. 
 %
 
-global RP AO
+global RP AO STIM
 global ACQPars PLOTHANDLES
 %--------------------------------------------------------------------------
 %Tessa's variable (saving raw data):
@@ -68,32 +68,32 @@ err = 0;
 debugTiming = 0;
 NREJECT = 0;
 
-if HW.STIM.StimPerSweep == 1
-    nRecordPoints = floor(HW.STIM.avg_dur*HW.STIM.sample_freq/1000.);
+if STIM.StimPerSweep == 1
+    nRecordPoints = floor(STIM.avg_dur*STIM.sample_freq/1000.);
 else
-    nRecordPoints = floor((HW.STIM.StimPerSweep*HW.STIM.ipi/1000)*HW.STIM.sample_freq); % convert from msec to sec, samples/second
+    nRecordPoints = floor((STIM.StimPerSweep*STIM.ipi/1000)*STIM.sample_freq); % convert from msec to sec, samples/second
 end
-nStimPoints = floor((HW.STIM.StimPerSweep*HW.STIM.ipi/1000)*HW.STIM.NIFreq);
+nStimPoints = floor((STIM.StimPerSweep*STIM.ipi/1000)*STIM.NIFreq);
 InterpFreq = 100000;
 
-timebase_Stim = 0:1/HW.STIM.NIFreq:(nStimPoints-1)/HW.STIM.NIFreq; % express rate in msec
-timebase_Record = 0:(1/HW.STIM.sample_freq):(nRecordPoints-1)/HW.STIM.sample_freq;
-stimBlockLen = floor(HW.STIM.ipi/1000*HW.STIM.NIFreq);
-recBlockLen = floor(HW.STIM.ipi/1000.*HW.STIM.sample_freq);
-interBlockLen = floor(HW.STIM.ipi/1000.*InterpFreq);
-timebase_Interpolate = 0:(1/InterpFreq):((HW.STIM.StimPerSweep*interBlockLen-1)/InterpFreq);
+timebase_Stim = 0:1/STIM.NIFreq:(nStimPoints-1)/STIM.NIFreq; % express rate in msec
+timebase_Record = 0:(1/STIM.sample_freq):(nRecordPoints-1)/STIM.sample_freq;
+stimBlockLen = floor(STIM.ipi/1000*STIM.NIFreq);
+recBlockLen = floor(STIM.ipi/1000.*STIM.sample_freq);
+interBlockLen = floor(STIM.ipi/1000.*InterpFreq);
+timebase_Interpolate = 0:(1/InterpFreq):((STIM.StimPerSweep*interBlockLen-1)/InterpFreq);
 timebase_Display = 1000*(0:(1/InterpFreq):(interBlockLen-1)/InterpFreq);
 
 replot = 0;
 t0 = 1;
-t1 = floor(1e-3*0.5*HW.STIM.sample_freq);
+t1 = floor(1e-3*0.5*STIM.sample_freq);
 t2 = 1;
-t3 = floor(1e-3*2.0*HW.STIM.sample_freq);
+t3 = floor(1e-3*2.0*STIM.sample_freq);
 tbs = 1;
-tbe = floor(1e-3*0.9*HW.STIM.sample_freq);
+tbe = floor(1e-3*0.9*STIM.sample_freq);
 
-tp0 = floor(1e-3*2.0*HW.STIM.sample_freq);
-tp1 = floor(1e-3*6.0*HW.STIM.sample_freq);
+tp0 = floor(1e-3*2.0*STIM.sample_freq);
+tp1 = floor(1e-3*6.0*STIM.sample_freq);
 
 data = zeros(4, interBlockLen);
 Total_np = 0;
@@ -111,26 +111,26 @@ Total_all = 0;
 % although we  generated a full stimulus (or used to), we're just going to get the first
 % stimulus waveform, or the first 2 if alternating, and let the dac run out
 % repeatedly.
-if(HW.STIM.Alternate == 0)
-    stdur = HW.STIM.ipi;
-    stdacrepeat = HW.STIM.StimPerSweep;
-    stpmax = floor((stdur*10^-3)/(1/HW.STIM.NIFreq));
-    aosamples = length(HW.STIM.wave);
+if(STIM.Alternate == 0)
+    stdur = STIM.ipi;
+    stdacrepeat = STIM.StimPerSweep;
+    stpmax = floor((stdur*10^-3)/(1/STIM.NIFreq));
+    aosamples = length(STIM.wave);
 else
-    stdur = 2.0*HW.STIM.ipi;
-    stdacrepeat = ceil(HW.STIM.StimPerSweep/2);
-    stpmax = floor((stdur*10^-3)/(1/HW.STIM.NIFreq));
-    aosamples = length(HW.STIM.wave);
+    stdur = 2.0*STIM.ipi;
+    stdacrepeat = ceil(STIM.StimPerSweep/2);
+    stpmax = floor((stdur*10^-3)/(1/STIM.NIFreq));
+    aosamples = length(STIM.wave);
 end
 if ~isempty(AO) % only do this if we are using NI
     if(aosamples < stpmax)
         stpmax = aosamples;
     end
-    swave = HW.STIM.wave(1:stpmax);
+    swave = STIM.wave(1:stpmax);
 else
-    swave = HW.STIM.wave;
+    swave = STIM.wave;
 end
-scaleFactor_ch1 = 1.0/HW.STIM.amp_gain; % (10/(2^23))*1000000/HW.STIM.amp_gain; % convert to microvolts, correcting for a/d in rp2.1
+scaleFactor_ch1 = 1.0/STIM.amp_gain; % (10/(2^23))*1000000/STIM.amp_gain; % convert to microvolts, correcting for a/d in rp2.1
 scaleFactor_ch2 = 1.0; % (10/(2^23)); % convert to millivolts, correcting for a/d in rp2.1
 
 skip = 1;
@@ -150,12 +150,12 @@ if isempty(AO)
 end
 
 set_status('Running');
-plotSweep = cell(3, HW.STIM.NSweeps);
+plotSweep = cell(3, STIM.NSweeps);
 
-for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
+for i = 1:STIM.NSweeps % loop over all the sweeps.
     sweepdata = zeros(4, interBlockLen);
     %    fprintf(2,'sweep: %d   stdacrepeat: %d \n', i, stdacrepeat);
-    HW.STIM.Monitor = get_SignalPlotFlag(2); % allow plot flag to change when running
+    STIM.Monitor = get_SignalPlotFlag(2); % allow plot flag to change when running
     IN_ACQ = 1; %#ok<*NASGU>
     STOP = 0; % make sure stop is reset first
     sweepreject = 0;
@@ -168,18 +168,18 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
         end
         set_attn(local_attn);
         AO.stop 
-        AO.Rate = HW.STIM.NIFreq; 
-        queueOutputData(AO, HW.STIM.wave); % wave is FULL
+        AO.Rate = STIM.NIFreq; 
+        queueOutputData(AO, STIM.wave); % wave is FULL
         AO.TriggersPerRun = 1; % set(AO, 'repeatoutput',  1);
         set_status('Running');
         tic
         startBackground(AO); % get ni board read to go, then trigger the rp
-        err = rp_setup(HW, nRecordPoints+1000, 'start');
+        err = rp_setup(nRecordPoints+1000, 'start');
         if err == 1
             fprintf(2, 'failed to start\n');
             return;
         end
-        recdur = nRecordPoints/HW.STIM.sample_freq;
+        recdur = nRecordPoints/STIM.sample_freq;
         curindex=RP.GetTagVal('Data_index');
         % Wait until buffer fills
         while( toc < recdur) %
@@ -196,7 +196,7 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
         ch1 = double(RP.ReadTagV('data_out1', 0, nRecordPoints));
         % think about this:
         %        da=RP.ReadTagVEX('data_out1', 0, nRecordPoints, 'I32', 'F64', 2);
-        if HW.STIM.Monitor
+        if STIM.Monitor
             ch2 = double(RP.ReadTagV('data_out2', 0, nRecordPoints));
         end
         rp_setup(nRecordPoints, 'stop');
@@ -212,7 +212,7 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
                 return;
             end
         end
-        recordblocking(ar, nRecordPoints/HW.STIM.sample_freq)
+        recordblocking(ar, nRecordPoints/STIM.sample_freq)
         ch1 = getaudiodata(ar);
     end
     IN_ACQ = 0;
@@ -225,8 +225,8 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
     
     % now split according to the number of stimulus pulses in the waveform
     ch1i = interp1(timebase_Record, ch1, timebase_Interpolate, 'linear', 'extrap');
-    ch1r = reshape(ch1i(1:(interBlockLen*HW.STIM.StimPerSweep)), ...
-        [interBlockLen, HW.STIM.StimPerSweep]);
+    ch1r = reshape(ch1i(1:(interBlockLen*STIM.StimPerSweep)), ...
+        [interBlockLen, STIM.StimPerSweep]);
 
     if(debugTiming) % this is very useful for debugging the timing...
         hf = findobj('Tag', 'debugfig');
@@ -245,12 +245,12 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
     % save(fname, 'ch1r', '-ascii', '-tabs');
     %   fprintf(2, 'max cha: %f nV\n', max(abs(ch1*1e9)));
     
-    if(HW.STIM.Monitor == 1)
+    if(STIM.Monitor == 1)
         fprintf(1, 'CH2 max in loop: %f, scalefactor: %f\n', max(ch2), scaleFactor_ch2);
         ch2 = ch2*scaleFactor_ch2; % express in volts.
         ch2i = interp1(timebase_Record, ch2, timebase_Interpolate, 'linear', 'extrap');
-        ch2r = reshape(ch2i(1:(interBlockLen*HW.STIM.StimPerSweep)), ...
-            [interBlockLen, HW.STIM.StimPerSweep]);
+        ch2r = reshape(ch2i(1:(interBlockLen*STIM.StimPerSweep)), ...
+            [interBlockLen, STIM.StimPerSweep]);
         ch2m = mean(ch2r, 2);
        % fprintf(1, 'CH2 scaled and max: %f\n', max(ch2r));
 %         if(debugTiming) % this is very useful for debugging the timing...
@@ -267,13 +267,13 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
     end
     % Artifact rejection code:
     iy = [];
-    li = 1:HW.STIM.StimPerSweep;
+    li = 1:STIM.StimPerSweep;
     
-    if HW.STIM.avg_reject > 0
-        [~, iy] = find(abs(ch1r) > HW.STIM.avg_reject*10^-6);
+    if STIM.avg_reject > 0
+        [~, iy] = find(abs(ch1r) > STIM.avg_reject*10^-6);
         allstds=std(ch1r(tbs:tbe,:));
         w=mean(allstds);
-        iy2 = find(allstds > w*HW.STIM.rms_reject)';
+        iy2 = find(allstds > w*STIM.rms_reject)';
         iy = [iy; iy2]; % concatenate...
         iy=unique(iy);
     end
@@ -288,27 +288,27 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
     Sweep_nn = 0;
     Sweep_nonalt = 0;
     for ii = 1:length(lin) % break out the data from the acquisition to individual arrays
-        if(HW.STIM.Alternate)
+        if(STIM.Alternate)
             switch(mod(ii,2)) % put alternate data into different data sets.
                 case 1
                     % fprintf(1, 'Alternate into data 1 %d\n', ii);
                     sweepdata(1,:) = sweepdata(1,:) + ch1r(:, ii)'; % sum alternate polarites into different channels
-                    if(HW.STIM.Monitor)
+                    if(STIM.Monitor)
                         sweepdata(3,:) = sweepdata(3,:) + ch2r(:, ii)';
-                    end % input channel 2 is microphone monitor of HW.STIM...
+                    end % input channel 2 is microphone monitor of STIM...
                     Sweep_np = Sweep_np + 1;
                 case 0
                     sweepdata(2,:) = sweepdata(2,:) + ch1r(:, ii)'; % the alternation group
                    % fprintf(1, 'Alternate into data 2 %d\n', ii);
-                    if(HW.STIM.Monitor)
+                    if(STIM.Monitor)
                         sweepdata(4,:) = sweepdata(4,:) + ch2r(:, ii)';
-                    end % input channel 2 is microphone monitor of HW.STIM...
+                    end % input channel 2 is microphone monitor of STIM...
                     Sweep_nn = Sweep_nn + 1;
                 otherwise
             end
         else % not in alternation mode
             sweepdata(1,:) = sweepdata(1,:) +  ch1r(:, ii)';
-            if(HW.STIM.Monitor)
+            if(STIM.Monitor)
                 sweepdata(3,:) = sweepdata(3,:) + ch2r(:, ii)';
             end
             Sweep_nonalt = Sweep_nonalt + 1;
@@ -321,8 +321,8 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
     Total_nn = Total_nn + Sweep_nn;
     Total_all = Total_all + Sweep_nonalt;
     %fprintf(1, 'i=%d, total_all = %d\n', i, Total_all);
-    if(~isempty(HW.STIM.hrep))
-        set(HW.STIM.hrep, 'string', sprintf('%d', i*HW.STIM.StimPerSweep)); % update acquisition trial counter
+    if(~isempty(STIM.hrep))
+        set(STIM.hrep, 'string', sprintf('%d', i*STIM.StimPerSweep)); % update acquisition trial counter
     end
     if(mod(replot, 10) == 0)
         replot = 0;
@@ -330,14 +330,14 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
         replot = replot + 1;
     end
     % average the data from accepted sweeps, then sum in to the data arrays
-    if(HW.STIM.Alternate)
+    if(STIM.Alternate)
         sweepdata(1,:) = sweepdata(1,:)/Sweep_np;
         sweepdata(1,:) = sweepdata(1,:) - mean(sweepdata(1,tbs:tbe));
         data(1,:) = data(1,:) + sweepdata(1,:);
         sweepdata(2,:) = sweepdata(2,:)/Sweep_nn;
         sweepdata(2,:) = sweepdata(2,:) - mean(sweepdata(2,tbs:tbe));
         data(2,:) = data(2,:) + sweepdata(2,:);
-        if HW.STIM.Monitor
+        if STIM.Monitor
             sweepdata(3,:) = sweepdata(3,:)/Sweep_np;
             sweepdata(4,:) = sweepdata(4,:)/Sweep_nn;
             data(3,:) = data(3,:) + sweepdata(3,:);
@@ -363,7 +363,7 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
         sweepdata(1,:) = sweepdata(1,:) - mean(sweepdata(1,tbs:tbe));
         data(1,:) = data(1,:) + sweepdata(1,:);
         runningAvg = data(1,:)/i;
-        if HW.STIM.Monitor
+        if STIM.Monitor
             sweepdata(3,:) = sweepdata(3,:)/Sweep_nonalt;
             data(3,:) = data(3,:) + sweepdata(3,:);
         end
@@ -388,16 +388,16 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
 %         dsscale = str2double(dsstr{dsval});
 %         set(PLOTHANDLES.data, 'YLim', [-dsscale dsscale]);
 %     end;
-    set(PLOTHANDLES.data, 'xlim', [0 HW.STIM.avg_dur]);
+    set(PLOTHANDLES.data, 'xlim', [0 STIM.avg_dur]);
     set(PLOTHANDLES.data, 'clipping', 'on');
     drawnow;
     
     % fprintf(1, 'Ch2 max in sweepdata: %f, nonalt: %d\n', max(sweepdata(3,:)), Sweep_nonalt);
-    if(HW.STIM.Monitor == 1) % only do this if we have the monitor set on
+    if(STIM.Monitor == 1) % only do this if we have the monitor set on
         hold off
         % fprintf(1, 'plotting max: %f  x %f\n', max(sweepdata(3,:)), max(timebase_Display));
         plot(PLOTHANDLES.signal2, timebase_Display, sweepdata(3,:), 'color', 'red');
-        if(HW.STIM.Alternate)
+        if(STIM.Alternate)
             hold on
             plot(PLOTHANDLES.signal2, timebase_Display, sweepdata(4,:), 'color', 'cyan');
         end
@@ -408,8 +408,8 @@ for i = 1:HW.STIM.NSweeps % loop over all the sweeps.
     end
     
     % delay to next sweep:
-    if i < HW.STIM.NSweeps % (but not on last sweep)
-        while toc < HW.STIM.InterSweepInterval
+    if i < STIM.NSweeps % (but not on last sweep)
+        while toc < STIM.InterSweepInterval
             stf = check_stop(0);
             if(stf == 1) % while waiting, check for stop.
                 fprintf(2, 'Sweep interval stop\n');
@@ -421,11 +421,11 @@ end
 
 % divde accumulated averages by the number of sweeps presented.
 
-data(1,:) = data(1,:)/HW.STIM.NSweeps;
-data(2,:) = data(2,:)/HW.STIM.NSweeps;
-if HW.STIM.Monitor
-    data(3,:) = data(3,:)/HW.STIM.NSweeps;
-    data(4,:) = data(4,:)/HW.STIM.NSweeps;
+data(1,:) = data(1,:)/STIM.NSweeps;
+data(2,:) = data(2,:)/STIM.NSweeps;
+if STIM.Monitor
+    data(3,:) = data(3,:)/STIM.NSweeps;
+    data(4,:) = data(4,:)/STIM.NSweeps;
 end
 
 % figure(10);
