@@ -3,6 +3,7 @@ function [Speaker, Mic] = getSpeakerMic()
 % parse it and return value in global variable.
 hs = findobj('tag', 'ABR_Speaker');
 ispk = get(hs, 'Value');
+ispk = ispk(1);
 
 switch ispk
     case 1

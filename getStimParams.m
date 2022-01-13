@@ -1,13 +1,13 @@
-function getStimParams()
+function [STIM] = getStimParams(STIM)
 % Get the stimulus parameters from the display window
 % and store them in the STIM structure
-global STIM
+
 
 STIM.Info = 'ABR4 StimFile';
 STIM.period = 100;
 STIM.risefall = 0.1;
-STIM.spls = get_spls();
-STIM.freqs = get_freqs();
+[spls, STIM] = get_spls(STIM);
+[freqs, STIM] = get_freqs(STIM);
 STIM.NIFreq = 500000;
 STIM.tone_delay = 1.0;
 STIM.tone_delay_mapping = 10.0;
@@ -23,10 +23,10 @@ if(ishandle(hchk))
         STIM.Alternate = 1;
     else
         STIM.Alternate = 0;
-    end;
+    end
 else
     STIM.Alternate = 0;
-end;
+end
 
 % get # sweeps in average
 hsr = findobj('Tag', 'ABR_NSweeps'); % number of sweeps to average across
@@ -51,9 +51,9 @@ else
     if(sps < 1 || sps > 100)
         sps = 20;
         set(hsps, 'string', sprintf('%d', sps));
-    end;
+    end
     STIM.StimPerSweep = sps;
-end;
+end
 
 % read interstimulus interval within a sweep
 hipi = findobj('Tag', 'ABR_SweepIPI');
@@ -64,9 +64,9 @@ else
     if(ipi < 1 || ipi > 5000)
         ipi = 40;
         set(hipi, 'string', sprintf('%6.1f', ipi));
-    end;
+    end
     STIM.ipi = ipi;
-end;
+end
 
 % Display duration
 hdur = findobj('Tag', 'ABR_Duration');
@@ -74,7 +74,7 @@ STIM.avg_dur = str2double(get(hdur, 'String'));
 if(STIM.avg_dur <= 5 || STIM.avg_dur > STIM.ipi)
     STIM.avg_dur = STIM.ipi; % milliseconds
     set(hdur, 'String', sprintf('%d', STIM.avg_dur));
-end;
+end
 
 % artificat rejection criterion: Amplitude criteria
 hreject = findobj('Tag', 'ABR_Reject');
@@ -90,14 +90,14 @@ amp_gain = str2double(get(hgain, 'String'));
 if(amp_gain < 1 || amp_gain > 1000000)
     amp_gain = 10000; % gain
     set(hgain, 'String', sprintf('%d', amp_gain));
-end;
+end
 STIM.amp_gain = amp_gain;
 
 
-function [spls] = get_spls()
+function [spls, STIM] = get_spls(STIM)
 % return the sound pressure level sequence from the window
 %
-global STIM 
+
 minspl = 0;
 maxspl = 120;
 stepspl = 10;
@@ -107,37 +107,38 @@ stepspl = 10;
 hmin = findobj('Tag', 'ABR_MinAttn');
 if(~isempty(hmin))
     minspl = str2double(get(hmin, 'string'));
-end;
+end
 hmax = findobj('Tag', 'ABR_MaxAttn');
 if(~isempty(hmax))
     maxspl = str2double(get(hmax, 'string'));
-end;
+end
 hstep = findobj('Tag', 'ABR_AttnStep');
 if(~isempty(hstep))
     stepspl = str2double(get(hstep, 'string'));
-end;
+end
 if(minspl > maxspl)
     temp = maxspl;
     maxspl = minspl;
     minspl = temp;
-end;
+end
 spls = minspl:stepspl:maxspl;
+STIM.spls = spls;
 STIM.SPLMin = minspl;
 STIM.SPLMax = maxspl;
 STIM.SPLStep = stepspl;
 return;
 
-function [freqs] = get_freqs()
+function [freqs, STIM] = get_freqs(STIM)
 % return the frequency list from the window
-global STIM
+
 fh = findobj('Tag', 'ABR_FreqList');
-list = get(fh, 'string');
-STIM.FreqList = list; % save the actual list as well.
-freqs = seq_parse(list);
+fllist = get(fh, 'string');
+STIM.FreqList = fllist; % save the actual list as well.
+freqs = seq_parse(fllist);
 if(max([freqs{:}]) < 100) % then they meant kHz, not Hz !
     for i = 1:length(freqs)
         freqs{i} = freqs{i}*1000;
-    end;
-end;
-STIM.FreqList = list;
+    end
+end
+STIM.FreqList = freqs;
 return;

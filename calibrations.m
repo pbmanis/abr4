@@ -1,4 +1,4 @@
-function calibrations( cmd, correctCal)
+function [HW, STIM] = calibrations(cmd, correctCal, HW, STIM)
 % This function handles the calibrations. There are two parts, depending on
 % the command:
 % 'Calibrate' records a range of frequencies at a fixed intensity
@@ -11,9 +11,7 @@ function calibrations( cmd, correctCal)
 % This code is part of ABR4, and references globals and GUI objects.
 % 2010-2022 Paul B. Manis and lab...
 
-global SPLCAL STIM SPKR STOP
-
-STOP = 0;
+HW.STOP = false;
 
 if strcmp(cmd, 'calibrate')
     [Speaker, Mic] = getSpeakerMic(); % read from the gui
@@ -131,14 +129,14 @@ switch calmode
             end
             attndB(i) = attn;
             set_attn(attn);
-            [~, ch2, err] = calstim(nRecordPoints); % get the data...
+            [~, ch2, HW, err] = calstim(nRecordPoints, HW); % get the data...
             if err == 1
                 fprintf(2, "Calibrations: calstim error");
                 return;
             end
             ch2 = filter(notchfilter, ch2);
             set_attn(-1);
-            [~, ch2nf, ~] = calstim(nRecordPoints); % make a noise floor measurement
+            [~, ch2nf, HW, ~] = calstim(nRecordPoints, HW); % make a noise floor measurement
             ch2nf = filter(notchfilter, ch2nf);
 
 
@@ -271,7 +269,7 @@ switch calmode
             STIM.NIFreq, 10, 1, 0); % convert rate to usec per point
         recordDuration = 1.0; % seconds
         nRecordPoints = floor(recordDuration*STIM.sample_freq);
-        [~, ch2, ~] = calstim(nRecordPoints); % get the data...
+        [~, ch2, HW, ~] = calstim(nRecordPoints, HW); % get the data...
         fprintf(1, "Recording completed\n");
         subplot(4,1,1);
         tstim = (0:1.0/STIM.NIFreq:(length(STIM.wave)-1.0)/STIM.NIFreq);
