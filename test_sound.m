@@ -1,7 +1,11 @@
 function [ch2] = test_sound(freq, dbspl, duration)
 % Generate a tone at the specified frequency and intensity. 
 % if a 3rd argument is present, it will be the duration.
-global STIM SPKR
+
+H = abr4('gethw');
+STIM = H.STIM;
+SPKR = H.CALIBRATION.SPKR;
+
 if nargin <= 2
     duration = 5.0;
 end

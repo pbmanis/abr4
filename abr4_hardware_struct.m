@@ -9,6 +9,7 @@ classdef abr4_hardware_struct
         ACQ_DEVICE
         AO
         RP
+        PA5
         STOP
         IN_ACQ
         STIM
@@ -23,6 +24,7 @@ classdef abr4_hardware_struct
             obj.ACQ_DEVICE = [];
             obj.AO = [];
             obj.RP = [];
+            obj.PA5 = [];
             obj.STOP = false;
             obj.IN_ACQ = false;
             obj.STIM = [];

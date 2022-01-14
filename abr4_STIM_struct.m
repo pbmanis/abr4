@@ -21,9 +21,6 @@ classdef abr4_STIM_struct
         click_amp  % amplitude of click pulse
         StimPerSweep  % number of click stimuli or tone pips per sweep
         Alternate  % flag for alternation of click sign
-        hsr  % handle to graphics 
-        hisi  % handle to graphics
-        hrep  % handle to graphics
         NSweeps  % number of sweeps 
         InterSweepInterval  % interval between sweeps
         avg_dur  % 

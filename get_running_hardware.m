@@ -3,17 +3,15 @@ function [HW] = get_running_hardware(HW)
 % pulled from Acq3.m, 4/30/2010. Paul B. Manis
 % Modified 9/26-29 2016 to use new Session mode for NIDAQmx
 %
-
-%global AO DEVICE_ID ACQ_DEVICE
 HW.ACQ_DEVICE = 'none'; 
 HW.DEVICE_ID = -1; 
-notice = ''; %#ok<NASGU>
+notice = '';
 switch(computer)
     case {'PC', 'PCWIN', 'PCWIN64'}
         % set up the NI acquisition and hardware interface
         devices = daq.getDevices();
         HW.AO = daq.createSession('ni');
-        hw.AdaptorName = 'nidaq';
+        HW.AdaptorName = 'nidaq';
         HW.ACQ_DEVICE = 'nidaq';
         HW.DEVICE_ID = 1;
         notice = 'NIDAQ found and registered';

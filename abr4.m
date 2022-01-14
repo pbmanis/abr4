@@ -1,4 +1,4 @@
-function []=abr4(varargin)
+function [D]=abr4(varargin)
 
 % Program for Auditory Brainstem Evoked Response Measurements
 % Paul B. Manis, Ph.D. UNC CHapel Hill, Otolaryngology/Head and Neck
@@ -23,10 +23,6 @@ function []=abr4(varargin)
 % The click generates 540 mV P-P at 20 dB attenuation
 % Referencing this to RMS
 
-
-global DLINE SIGNAL
-global SCALE
-
 persistent DataDirectory
 persistent HW
 persistent CALIBRATION
@@ -34,7 +30,9 @@ persistent PARS
 persistent PLOTS
 persistent DATA
 persistent STIM
+persistent GUI
 
+D = [];  % in case ABR4 needs to return something.
 
 if isempty(varargin) || (exist('HW', 'var') == 0)
     HW = abr4_hardware_struct;
@@ -42,7 +40,7 @@ if isempty(varargin) || (exist('HW', 'var') == 0)
     
     STIM = abr4_STIM_struct;
     STIM.initialize();
-
+    
     CALIBRATION = abr4_calibration_struct;
     CALIBRATION.initialize();
     
@@ -54,6 +52,9 @@ if isempty(varargin) || (exist('HW', 'var') == 0)
     
     DATA = abr4_data_struct;
     DATA.initialize();
+    
+    GUI = abr4_gui_struct; % don't initialize until the gui is built.
+    
     fprintf(2, 'Created structures\n');
     
 end
@@ -66,58 +67,57 @@ if (exist('GrandDatap', 'var') == 0)
     GrandDatan = {};
 end
 DataDirectory = 'C:\Users\experimenters\Desktop\ABR_Data';
+CalibrationDirectory = 'calibration_history';
 
-if(nargin == 0) % initialize
+
+if(nargin == 0) % initialize when entered for the first time.
+    if ~exist(CalibrationDirectory, 'dir')
+        mkdir(CalibrationDirectory);
+    end
     clear HW.HARDWARE
     
     HW.HARDWARE.system = computer(); % get the computer - this parses a few things.
-   STIM.Info = 'ABR4 StimFile';
-   STIM.StimPerSweep = 1;
+    STIM.Info = 'ABR4 StimFile';
+    STIM.StimPerSweep = 1;
     PA5 = [];
     PARS.ABR4_FIG=open('ABR4.fig'); % get the figure window
     datacursormode();
+    GUI.initialize();
     
     [HW, STIM, CALIBRATION] = hardware_initialization(HW, STIM, CALIBRATION); % init the hardware.
     %    DataDirectory = 'C:\Users\Experimenters\Desktop\ABR_Data';
     HW.IN_ACQ = 0; % flag for when we are busy in acquisition
-    DLINE = [];
     hf = [];
     PLOTS.responsemap = [];
-    SIGNAL = [];
-    SCALE = 0;
     [Speaker, Mic] = getSpeakerMic();
     CALIBRATION = get_calibration_info(Speaker, Mic, CALIBRATION);
     
-    SPKR.id = Speaker;
-    SPKR.attn = 0;
-    hm = findobj('Tag', 'ABR_cursor');
-    msg_pos = get(hm, 'Position');
+    CALIBRATION.SPKR.id = Speaker;
+    CALIBRATION.SPKR.attn = 0;
+    msg_pos = get(GUI.hcursor, 'Position');
     set(gcf, 'UserData', []);
     PLOTS.signal1 = findobj('tag', 'ABR_Stimulus1');
     PLOTS.signal2 = findobj('tag', 'ABR_Stimulus2');
     PLOTS.data = findobj('tag', 'ABR_AvgData');
     PLOTS.responsemap = findobj('tag', 'ABR_ResponseMap');
     
-    %     datac_setcrosshair(hf(1), 'ABR_stim1', 'ms', 'V', msg_pos);
-    %     hf(2) = get_axis('signal2');
-    %         datac_setcrosshair(hf(2), 'ABR_stim2', 'ms', 'V', msg_pos);
-    %     hf(3) = get_axis('data', 1);
-    %
-    %     datac_setcrosshair(hf(3), 'ABR_data', 'ms', '\microV', msg_pos);
-    %     hf(4) = get_axis('response');
-    %
-    %     datac_setcrosshair(hf(4), 'ABR_map', 'F (kHz)', 'SPL(dB)', msg_pos);
-    %     set(gcf, 'UserData', hf); % store handles... use get_axis routine to recover handles
-    set_attn(-1);
+    %     datac_setcrosshair(PLOT.signal1, 'ABR_stim1', 'ms', 'V', msg_pos);
+    %     datac_setcrosshair(PLOT.signal2, 'ABR_stim2', 'ms', 'V', msg_pos);
+    %     datac_setcrosshair(PLOT.data, 'ABR_data', 'ms', '\microV', msg_pos);
+    %     datac_setcrosshair(PLOT.responsemap, 'ABR_map', 'F (kHz)', 'SPL(dB)', msg_pos);
+
+    HW = set_attn(HW, -1);
     dac_zero;
     STOP = 0;
     last_data = 'clickabr';
+    
+    
     return;
 end
 
 % always check the speaker immediately prior to stimulation
-[Speaker, Mic] = getSpeakerMic();
-SPKR.id = Speaker;
+[Speaker, ~] = getSpeakerMic();
+CALIBRATION.SPKR.id = Speaker;
 switch (SPKR.id)
     case {'ES1', 'EC1'}
         CALIBRATION.SPKR.attn = 0.0;
@@ -144,8 +144,11 @@ switch(cmd)
         close(PARS.ABR4_FIG);
         clear;
         return;
+    case 'gethw' % return the HARDWARE, STIM and CALIBRATION structures
+        D = struct("HW", HW, "STIM", STIM, "CALIBRATION", CALIBRATION);
+        return
     case 'load' % load a stimulus file from disk
-        [FileName,PathName,FilterIndex] = uigetfile('*.abr4','Stim File to Load', 'StimFiles/*.abr4');
+        [FileName,PathName,~] = uigetfile('*.abr4','Stim File to Load', 'StimFiles/*.abr4');
         if FileName == 0 % cancelled out.
             return;
         end
@@ -160,11 +163,9 @@ switch(cmd)
             return;
         end
         updateStimParams(); % store info back to the window...
-        hfn = findobj('tag', 'ABR_StimFile');
-        if ~isempty(hfn)
-            set(hfn, 'String', FileName);
+        if ~isempty(GUI.filename)
+            set(GUI.filename, 'String', FileName);
         end
-        
         
     case 'save' % save a stimulus file to disk
         [FileName,PathName] = uiputfile('*.abr4','Stim File to Save',...
@@ -175,8 +176,8 @@ switch(cmd)
         [STIM] = getStimParams(STIM); % read the current data in the window.
         save([PathName FileName], 'HW');
         hfn = findobj('tag', 'ABR_StimFile');
-        if ~isempty(hfn)
-            set(hfn, 'String', FileName);
+        if ~isempty(GUI.hstimfilename)
+            set(GUI.hstimfilename, 'String', FileName);
         end
         
     case {'calibrate', 'microphone', 'microphone104', 'checkcal'}
@@ -185,13 +186,13 @@ switch(cmd)
         
     case 'response_spec' % calculate the response spectrum
         if(~isempty(DATAp))
-            Hs=spectrum.periodogram('blackman');
-            d = DATAp(~isnan(DATAp));
-            Hpsd=psd(Hs,d, 'Fs',STIM.sample_freq/1000);
+%             Hs=spectrum.periodogram('blackman');
+            [Hpsd, w] = periodogram(DATA.DATAp,'blackman', 'Fs',STIM.NIFreq/10);
+%             d = DATAp(~isnan(DATAp));
+%             Hpsd=psd(Hs,d, 'Fs',STIM.sample_freq/1000);
             % clear the axes of the response map-- TFR 11/16/2015
             cla(PLOTS.responsemap);
-            plot(PLOTS.responsemap, Hpsd.Frequencies(2:end), ...
-                log10(Hpsd.Data(2:end)));
+            plot(PLOTS.responsemap, w, log10(Hpsd));
             set(PLOTS.responsemap, 'XLim', [0.2, 64.]);
             set(PLOTS.responsemap, 'XScale', 'log');
             set(PLOTS.responsemap, 'YScale', 'linear');
@@ -204,12 +205,11 @@ switch(cmd)
         
     case 'stim_spec' % stimulus spectrum, ref max response
         if(~isempty(STIM.wave))
-            Hs=spectrum.periodogram('blackman');
-            Hpsd=psd(Hs,STIM.wave,'Fs',STIM.NIFreq/10);
+%             Hs=spectrum.periodogram('blackman');
+            [Hpsd, w] =periodogram(STIM.wave,'blackman', 'Fs',STIM.NIFreq/10);
             cla(PLOTS.responsemap);
-            normSpec = Hpsd.Data(2:end)/max(Hpsd.Data(2:end));
-            plot(PLOTS.responsemap, Hpsd.Frequencies(2:end), ...
-                log10(normSpec));
+%             normSpec = Hpsd.Data(2:end)/max(Hpsd.Data(2:end));
+            plot(PLOTS.responsemap, w, log10(Hpsd));
             set(PLOTS.responsemap, 'XLim', [0.2, 64.0]);
             set(PLOTS.responsemap, 'XScale', 'log');
             set(PLOTS.responsemap, 'YScale', 'linear');
@@ -223,14 +223,14 @@ switch(cmd)
         cla(PLOTS.responsemap);
         switch (last_data)
             case 'clickabr'
-                s = size(CDATAp);
+                s = size(DATA.CDATAp);
                 maxr = zeros(s(1),1);
                 at=zeros(s(1), 1);
                 for i = 1:s(1)
-                    maxr(i) = max(abs(CDATAp(i,:)'+CDATAn(i,:)'));
+                    maxr(i) = max(abs(DATA.DATAp(i,:)'+DATA.CDATAn(i,:)'));
                     at(i) =STIM.spls(i);
                 end
-                get_axis('response');
+                % get_axis('response');
                 plot(PLOTS.responsemap, at,  maxr,...
                     'marker', 'x', 'color', 'green');
                 
@@ -252,7 +252,7 @@ switch(cmd)
                     CDATAn = GrandDatan{j};
                     for i = 1:length(STIM.spls)
                         maxr(i,j) = [maxr max(abs(CDATAp(i,:)'+CDATAn(i,:)'))]; % measure the signal
-                        get_axis('response');
+                        % get_axis('response');
                         r = quiver(fr, -STIM.spls, 0*maxr, maxr, 0.67);
                         set(r, 'marker', 'x', 'markersize', 1.5); % set(PLOTS.responsemap, 'Zdata', maxr);
                         drawnow
@@ -286,38 +286,33 @@ switch(cmd)
         fnamen = sprintf('%s/%4d%02d%02d-%02d%02d-n.txt', DataDirectory, c(1), c(2), c(3), c(4), c(5));
         fname_bigdata = sprintf('%s/%4d%02d%02d-%02d%02d.mat', DataDirectory, c(1), c(2), c(3), c(4), c(5));
         fnamei = sprintf('%s/%4d%02d%02d-%02d%02d-SPL.txt', DataDirectory, c(1), c(2), c(3), c(4), c(5));
-        hf = findobj('Tag', 'ABR_CurrFreq');
-        set(hf, 'String', 'Click');
+        set(hcurrentfrequency, 'String', 'Click');
         
         if strcmp(cmd, 'click_test')
             nspl = 1;
             spllist = [75];
             mode = 'test';
-            hfn = findobj('Tag', 'ABR_filename');
-            if(ishandle(hfn))
-                set(hfn, 'string', '   ');
+            if(ishandle(GUI.hfilename))
+                set(hfilename, 'string', '   ');
             end
         else
             nspl = length(STIM.spls);
             spllist =STIM.spls;
             mode = 'real';
-            hfn = findobj('Tag', 'ABR_filename');
-            if(ishandle(hfn))
-                set(hfn, 'string', fnamep);
+            if(ishandle(GUI.hfilename))
+                set(hfilename, 'string', '   ');
             end
         end
         at = NaN*ones(nspl, 1);
         maxr = NaN*zeros(nspl, 1);
-        fprintf(2, "nspl: %d\n", nspl);
         for i = 1 : nspl
-            hf = findobj('Tag', 'ABR_CurrSPL');
-            set(hf, 'String', sprintf('%d %.1f dB', i, spllist(end-(i-1))));
+            set(hcurrentSPL, 'String', sprintf('%d %.1f dB', i, spllist(end-(i-1))));
             [HW, stf] = check_stop(HW, 0);
             if stf == 1 % successful STOP from the button
                 err = 1;
                 return;
             end
-            [DATA, STIM, err] = click_abr(spllist(end-(i-1)), mode, HW, STIM, CALIBRATION, DATA, PARS, PLOTS);
+            [DATA, STIM, err] = click_abr(spllist(end-(i-1)), mode, HW, STIM, CALIBRATION, DATA, PLOTS);
             if i == 1
                 DATA.CDATAp = zeros(nspl, length(DATA.DATAp)); % positive and negative data arrays for click data
                 DATA.CDATAn = zeros(nspl, length(DATA.DATAn));
@@ -348,7 +343,7 @@ switch(cmd)
             
             
         end
-        set(hstat, 'String', 'Done');
+        set(GUI.hstat, 'String', 'Done');
         DATA.CDATAp = DATA.CDATAp';
         DATA.CDATAn = DATA.CDATAn';
         spl =STIM.spls';
@@ -358,7 +353,7 @@ switch(cmd)
             save(fnamep, 'CDATAp', '-ascii', '-tabs');
             save(fnamei, 'spl', '-ascii', '-tabs'); % save intensity list also
             save(fnamen, 'CDATAn', '-ascii', '-tabs');
-            % make a structure with all the data and parameters 
+            % make a structure with all the data and parameters
             bigdata = struct('CAL', CALIBRATION, 'DATA', DATA, 'STIM', STIM, 'HARDWARE', HW, 'spl', spl);
             save(fname_bigdata, 'bigdata', '-mat');
         end
@@ -378,7 +373,7 @@ switch(cmd)
         [STIM] = getStimParams(STIM);
         % Get the calibration frequency map for the current speaker
         %
-        load(sprintf('frequency_%s.cal', Speaker), '-mat'); % get calibration file. Result is in CAL
+        % load(sprintf('frequency_%s.cal', Speaker), '-mat'); % get calibration file. Result is in CAL
         if(isempty(STIM.spls) || isempty(STIM.freqs))
             return;
         end
@@ -430,37 +425,32 @@ switch(cmd)
         %  fprintf(1, 'nattn: %d,  nfreq: %d\n', length(spls), length(fr));
         fnamei = sprintf('%s/%4d%02d%02d-%02d%02d-SPL.txt', DataDirectory, c(1), c(2), c(3), c(4), c(5));
         fnamef = sprintf('%s/%4d%02d%02d-%02d%02d-kHz.txt', DataDirectory, c(1), c(2), c(3), c(4), c(5));
-        hf = findobj('Tag', 'ABR_CurrFreq');
-        hs = findobj('Tag', 'ABR_CurrSPL');
-        hfn = findobj('Tag', 'ABR_filename');
-
+        
         for j = 1:length(fr) % go over the response map, frequency x atten
             DATA.CDATAp = [];
             DATA.CDATAn = [];
             fnamep = sprintf('%s/%4d%02d%02d-%02d%02d-p-%8.3f.txt', DataDirectory, c(1), c(2), c(3), c(4), c(5), fr(j));
             fnamen = sprintf('%s/%4d%02d%02d-%02d%02d-n-%8.3f.txt', DataDirectory, c(1), c(2), c(3), c(4), c(5), fr(j));
-            fnamebigdata = sprintf('%s/%4d%02d%02d-%02d%02d-n-%8.3f.mat', DataDirectory, c(1), c(2), c(3), c(4), c(5), fr(j));
-            set(hf, 'String', sprintf('%6.1f kHz', fr(j)));
+            fname_bigdata = sprintf('%s/%4d%02d%02d-%02d%02d-n-%8.3f.mat', DataDirectory, c(1), c(2), c(3), c(4), c(5), fr(j));
+            set(GUI.hcurrentfrequency, 'String', sprintf('%6.1f kHz', fr(j)));
             if(~strcmp( cmd, 'tone_test'))
-                if(ishandle(hfn))
-                    set(hfn, 'string', fnamep);
-                end
+                set(GUI.hfilename, 'string', fnamep);
             else
-                set(hfn, 'String', 'Tone Test (no file)');
+                set(GUI.hfilename, 'String', 'Tone Test (no file)');
             end
             
             for i = 1:length(spllist)
-             [HW, stf] = check_stop(HW, 0);
-               if stf == 1 % successful STOP from the button
+                [HW, stf] = check_stop(HW, 0);
+                if stf == 1 % successful STOP from the button
                     err = 1;
                     return;
                 end
-
+                
                 [DATA, err] = tone_map(cmd, fr(j), spllist(i), HW, CALIBRATION, STIM, DATA, PLOTS); % main tone abr routine
                 if(err ~= 0)
                     return;
                 end
-                set(hs, 'String', sprintf('%3.1f dB', spllist(i)));
+                set(GUI.hcurrentSPL, 'String', sprintf('%3.1f dB', spllist(i)));
                 
                 if ~strcmp(cmd, 'tone_test')
                     maxr(i,j) = max(abs(DATA.DATAa(1,:)')); % measure the signal
@@ -476,8 +466,8 @@ switch(cmd)
                 %               pause(0.1); % brief delay between frequencies.
             end
             GrandDatap{j} = DATA.CDATAp;
-            GrandDatan{j} = DATA>CDATAn;
-            DATA.CDATAp = DATA>CDATAp';
+            GrandDatan{j} = DATA.CDATAn;
+            DATA.CDATAp = DATA.CDATAp';
             DATA.CDATAn = DATA.CDATAn';
             if(~strcmp(cmd, 'tone_test'))
                 save(fnamep, 'DATA.CDATAp', '-ascii', '-tabs');
@@ -493,7 +483,7 @@ switch(cmd)
             save(fnamei, 'spl', '-ascii', '-tabs'); % save intensity list also
             save(fnamef, 'fr', '-ascii', '-tabs'); % and frequency list
         end
-        set(hstat, 'String', 'Done');
+        set(GUI.hstat, 'String', 'Done');
         last_data = cmd;
         
         
@@ -516,7 +506,7 @@ end
 % 9/23/03 P. Manis
 %
 
-function [DATA, STIM, err] = click_abr(spl, mode, HW, STIM, CALIBRATION, DATA, PARS, PLOTS)
+function [DATA, STIM, err] = click_abr(spl, mode, HW, STIM, CALIBRATION, DATA, PLOTS)
 % take a single parameter (spl, mode) click abr
 % requires call to getStimParams first.
 % if mode is 'test', we run in a reduced acquisition format
@@ -531,11 +521,11 @@ DATA.REFERENCE = [];
 
 if strcmp(mode, 'test')
     oldsweeps =STIM.NSweeps;
-   STIM.NSweeps = 10;
+    STIM.NSweeps = 10;
     oldsps =STIM.StimPerSweep;
-   STIM.StimPerSweep = 40;
+    STIM.StimPerSweep = 40;
     oldipi =STIM.ipi;
-   STIM.ipi = 25;
+    STIM.ipi = 25;
     set(STIM.hsr, 'String', num2str(STIM.NSweeps));
     updateStimParams;
 end
@@ -543,15 +533,15 @@ end
 cnp =STIM.StimPerSweep;
 
 if strcmp(HW.HARDWARE, 'NI')
-   STIM.NIFreq = 500000; % express in sec per point
+    STIM.NIFreq = 500000; % express in sec per point
 else
-   STIM.NIFreq = 44100;
+    STIM.NIFreq = 44100;
 end
 STIM.delay =STIM.click_delay;
 updateStimParams;
 
 [STIM.wave,STIM.clock] = click(CALIBRATION.SPLCAL.click_amp,STIM.click_delay,STIM.click_dur,...
-   STIM.NIFreq,STIM.ipi, cnp,STIM.Alternate); % convert rate to usec per point
+    STIM.NIFreq,STIM.ipi, cnp,STIM.Alternate); % convert rate to usec per point
 attn = CALIBRATION.SPLCAL.maxclick - spl;
 if(attn < 0)
     fprintf(1, 'Requesting sound louder than available with this speaker\nSetting to 0 attn\n');
@@ -570,9 +560,9 @@ if fl == 1
 end
 
 [data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, attn);
-set_attn(-1);
+HW = set_attn(HW, -1);
 if(err == 0)
-    [DATA, davg] = final_plot(data, STIM, DATA, PLOTS, PARS, keep_reference);
+    [DATA, davg] = final_plot(data, STIM, DATA, PLOTS, keep_reference);
     DATA.DATAp = data(1,:);
     DATA.DATAn = data(2,:);
     DATA.DATAa = davg;
@@ -583,9 +573,9 @@ if keep_reference && err == 0
     DATA.REFERENCE = davg;
 end
 if strcmp(mode, 'test')
-   STIM.NSweeps = oldsweeps;
-   STIM.ipi = oldipi;
-   STIM.StimPerSweep = oldsps;
+    STIM.NSweeps = oldsweeps;
+    STIM.ipi = oldipi;
+    STIM.StimPerSweep = oldsps;
     updateStimParams;
 end
 
@@ -601,9 +591,9 @@ function [DATA, err] = tone_map(mode, freq, spl, HW, CALIBRATION, STIM, DATA, PL
 err = 0;
 STIM.rate = 1/STIM.sample_freq; % rate is in sec per point.
 if strcmp(HW.HARDWARE, 'NI')
-   STIM.NIFreq = 500000; % express in sec per point
+    STIM.NIFreq = 500000; % express in sec per point
 else
-   STIM.NIFreq = 44100;
+    STIM.NIFreq = 44100;
 end
 
 if ~isempty(HW.AO)
@@ -618,11 +608,11 @@ end
 if strcmp(mode, 'tone_test')
     DATA.REFERENCE = [];
     oldsweeps =STIM.NSweeps;
-   STIM.NSweeps = 5;
+    STIM.NSweeps = 5;
     oldsps =STIM.StimPerSweep;
-   STIM.StimPerSweep = 40;
+    STIM.StimPerSweep = 40;
     oldipi =STIM.ipi;
-   STIM.ipi = 25;
+    STIM.ipi = 25;
     set(STIM.hsr, 'String', num2str(STIM.NSweeps));
 end
 
@@ -649,9 +639,8 @@ switch (mode)
             5, 0.5, 0,STIM.NIFreq,STIM.ipi, tnp,STIM.Alternate); % convert rate to usec per point
     case {'tone_mapping', 'tone_info'}
         disp 'tone_mapping'
-        htd = findobj('tag', 'ABR_ToneMapDur');
-        sel = get(htd, 'value');
-        slist = str2num(get(htd, 'String')); %#ok<ST2NM>
+        sel = get(GUI.hToneMapDuration, 'value');
+        slist = str2num(get(GUI.hToneMapDuration, 'String')); %#ok<ST2NM>
         tdur = slist(sel);
         [STIM.wave,STIM.clock] = tonepip(CALIBRATION.SPLCAL.ToneVoltage, freq,STIM.tone_delay_mapping, tdur, 2.5, 0,STIM.NIFreq,STIM.ipi,STIM.StimPerSweep, 0); % convert rate to usec per point
     otherwise
@@ -673,25 +662,25 @@ if fl == 1
 end
 
 [data, STIM, err] = acquire4('attn', HW, PLOTS, attn);
-set_attn(-1);
+HW = set_attn(HW, -1);
 if (err ~= 0)
     return
 end
 if(err == 0)
-    [DATA, davg] = final_plot(data, STIM, DATA, PLOTS, PARS);
+    [DATA, davg] = final_plot(data, STIM, DATA, PLOTS);
     DATA.DATAp = data(1,:);
     DATA.DATAn = data(2,:);
     DATA.DATAa = davg;
 end
 if(strcmp(mode, 'tone_test'))
-   STIM.NSweeps = oldsweeps;
-   STIM.ipi = oldipi;
-   STIM.StimPerSweep = oldsps;
+    STIM.NSweeps = oldsweeps;
+    STIM.ipi = oldipi;
+    STIM.StimPerSweep = oldsps;
     updateStimParams;
 end
 end
 
-function [DATA, davg] = final_plot(data, STIM, DATA, PLOTS, PARS, varargin)
+function [DATA, davg] = final_plot(data, STIM, DATA, PLOTS, varargin)
 %tr = (0:length(data)-1)*STIM.rate*1000; % express rate in usec
 
 if(STIM.Alternate)

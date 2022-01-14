@@ -1,6 +1,6 @@
 function [Speaker, Mic] = getSpeakerMic()
 %getSpeakerMic Read the speaker and mic configuration from the gui
-% parse it and return value in global variable.
+% parse it and return the string values.
 hs = findobj('tag', 'ABR_Speaker');
 ispk = get(hs, 'Value');
 ispk = ispk(1);

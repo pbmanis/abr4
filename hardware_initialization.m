@@ -12,7 +12,7 @@ CALIBRATION.SPLCAL.click_amp = 5; % volts out #### DO NOT CHANGE THIS! Should be
 CALIBRATION.SPLCAL.click_dur = 0.05; % milliseconds duration #### DO NOT CHANGE THIS! Should be 0.05 msec
 HW.HARDWARE = 'NI';
 [HW] = get_running_hardware(HW);
-set_attn(120.0);
+set_attn(HW, 120.0);
 if ~isempty(HW.AO) % using analog output on NI DAQ
     HW.AO.Rate = 500000.0; % always set to high sample rate
     % the 6731 card goes up to 1 MHz at 16 bits on one channel ...

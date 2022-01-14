@@ -1,11 +1,13 @@
 function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, varargin)
-% general data acquisition routine (for all acquisition)
-% Acquire4 is for abr4 - includes ability to test using sound card.
+% Data acquisition routine (for all acquisition)
+% Expects TDT RP2.1 for acquistion, PA5 attenuator, and NI6113 DAC card.
+% Includes the ability to perform limited testing using a sound card.
 
 % 7/15/03 p. manis.
-% acquire data through tdt system iii rp2.1.
-% arms stimulus for fast ni card, and collect navg waveforms
-% requires call to getstimparams before calling.
+% Acquire data through TDT System III with an RP2.1.
+% Arms stimulus for fast NI card, and collects navg waveforms
+% Requires call to hardware initialization and getstimparams before calling.
+%
 % 3/29/07 new version.
 % samples individual traces, not using avgbuf.
 % also samples 2 channels, to monitor microphone output as well.
@@ -13,8 +15,8 @@ function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, varargin)
 % sequence.
 % the number of reps in a block is STIM.np, the interval between reps is
 % ipi. the waveform is sent out the 14-bit dac.
-%5/25/2007 pbm.
 %
+% 5/25/2007 pbm.
 % Modifications to use a different structure for the stimulus parameters.
 % now breaks out:
 % StimPerSweep, SweepIPI (e.g., for the stimuli that are presented in one
@@ -28,14 +30,17 @@ function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, varargin)
 % works with Matlab 2016.
 %
 % Jan 13 2021 P. Manis
-% Removing globals (new branch 'no-globals')
-
+% Removing globals (new branch 'no-globals'). All data structures are
+% defined as 'persistent' in abr4. Structures are defined in classes. 
+%
 %--------------------------------------------------------------------------
 %Tessa's variable (saving raw data):
 rawdata=[];
 rawdatacount=1;
 %--------------------------------------------------------------------------
 % Calibration Only:
+% Check the input cmd argument for commands that invoke calibration-related
+% routines. 
 %--------------------------------------------------------------------------
 err = 0;
 data = [];
@@ -168,7 +173,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
             err = 1;
             return;
         end
-        set_attn(local_attn);
+        HW = set_attn(HW, local_attn);
         HW.AO.stop
         HW.AO.Rate = STIM.NIFreq;
         queueOutputData(HW.AO, STIM.wave); % wave is FULL
@@ -202,7 +207,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         if STIM.Monitor
             ch2 = double(HW.RP.ReadTagV('data_out2', 0, nRecordPoints));
         end
-        [HW, rp_return] = rp_setup(HW, STIM, nRecordPoints, 'stop');
+        [HW, ~] = rp_setup(HW, STIM, nRecordPoints, 'stop');
 %         fprintf(2, "rpsetup return code: %d", rp_return);
     else
         play(PL); % start it...
@@ -232,6 +237,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     ch1r = reshape(ch1i(1:(interBlockLen*STIM.StimPerSweep)), ...
         [interBlockLen, STIM.StimPerSweep]);
     
+    %{
     if(debugTiming) % this is very useful for debugging the timing...
         hf = findobj('Tag', 'debugfig');
         if isempty(hf)
@@ -243,7 +249,8 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         hold on;
         plot(ch1, 'g');
     end
-    
+    %}
+        
     c=clock;
     fname = sprintf('%4d%02d%02d-%02d%02d-raw-%d.txt', c(1), c(2), c(3), c(4), c(5), i);
     % save(fname, 'ch1r', '-ascii', '-tabs');
@@ -269,7 +276,10 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         %             plot(ch2, 'r');
         %         end;
     end
+    
+    %----------------------------------------------------------------------
     % Artifact rejection code:
+    %----------------------------------------------------------------------
     iy = [];
     li = 1:STIM.StimPerSweep;
     
@@ -279,7 +289,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         w=mean(allstds);
         iy2 = find(allstds > w*STIM.rms_reject)';
         iy = [iy; iy2]; % concatenate...
-        iy=unique(iy);
+        iy = unique(iy);
     end
     lin = setxor(li, iy); % exclude those that were rejected.
     NREJECT = NREJECT + length(iy);
