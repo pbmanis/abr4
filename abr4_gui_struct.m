@@ -3,7 +3,8 @@ classdef abr4_gui_struct
     % holds all of the GUI handles for abr4
     
     properties
-        hsr  % handle to graphics
+       hstat
+       hsr  % handle to graphics
         hchk
         hisi  % handle to graphics
         hrep  % handle to graphics
@@ -28,6 +29,7 @@ classdef abr4_gui_struct
         function obj = initialize(obj)
             % Construct an instfance of this class
             %
+            obj.hstat = findobj('Tag', 'ABR_Status');
             obj.hsr = findobj('Tag', 'ABR_NSweeps'); % number of sweeps to average across
             obj.hchk = findobj('Tag', 'ABR_AlternatePolarity');
             obj.hrep = findobj('Tag', 'ABR_StimRep');% rep counter
@@ -43,11 +45,26 @@ classdef abr4_gui_struct
             obj.hstep = findobj('Tag', 'ABR_AttnStep');
             obj.hflist = findobj('Tag', 'ABR_FreqList');
             obj.hcursor = findobj('Tag', 'ABR_cursor');
-            obj.hstimfilename = findobj('tag', 'ABR_StimFile');
+            obj.hstimfilename = findobj('Tag', 'ABR_StimFile');
             obj.hcurrentfrequency = findobj('Tag', 'ABR_CurrFreq');
             obj.hcurrentSPL = findobj('Tag', 'ABR_CurrSPL');
             obj.hToneMapDuration = findobj('Tag', 'ABR_ToneMapDur');
 
+        end
+        function print_handles(obj)
+        fprintf(1, "GUI Handles\n");
+        disp(obj.hflist)
+        fllist = get(obj.hflist, 'string');
+        fprintf(1, "fllist: %s", fllist);
+        disp(obj.hsr)
+        hsr = get(obj.hsr, 'string');
+        disp(hsr)
+        fprintf(1, "hsr: %s", hsr);
+        end
+        function [x] = get_handle(obj)
+        x = findobj('Tag', 'ABR_FreqList');
+        disp('get tag for freqlsit')
+        disp(x)
         end
     end
 end

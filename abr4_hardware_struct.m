@@ -4,6 +4,7 @@ classdef abr4_hardware_struct
     
     properties
   % Hardware structure
+        AdaptorName
         HARDWARE
         DEVICE_ID
         ACQ_DEVICE
@@ -19,6 +20,7 @@ classdef abr4_hardware_struct
         function obj = initialize(obj)
             %UNTITLED2 Construct an instance of this class
             %   Detailed explanation goes here
+            obj.AdaptorName = ''
             obj.HARDWARE = '';
             obj.DEVICE_ID = [];
             obj.ACQ_DEVICE = [];

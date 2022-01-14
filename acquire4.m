@@ -1,4 +1,4 @@
-function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, varargin)
+function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, GUI, varargin)
 % Data acquisition routine (for all acquisition)
 % Expects TDT RP2.1 for acquistion, PA5 attenuator, and NI6113 DAC card.
 % Includes the ability to perform limited testing using a sound card.
@@ -335,9 +335,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     Total_nn = Total_nn + Sweep_nn;
     Total_all = Total_all + Sweep_nonalt;
     %fprintf(1, 'i=%d, total_all = %d\n', i, Total_all);
-    if(~isempty(STIM.hrep))
-        set(STIM.hrep, 'string', sprintf('%d', i*STIM.StimPerSweep)); % update acquisition trial counter
-    end
+    set(GUI.hrep, 'string', sprintf('%d', i*STIM.StimPerSweep)); % update acquisition trial counter
     if(mod(replot, 10) == 0)
         replot = 0;
     else

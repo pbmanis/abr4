@@ -11,13 +11,10 @@ set(GUI.hchk, 'value', STIM.Alternate);
 
 % # sweeps in average
 set(GUI.hsr, 'string', num2str(STIM.NSweeps));
-STIM.hsr = hsr; % need to keep the handle as well.
 
 % rep counter
 set(GUI.hrep, 'String', '0');
-STIM.hrep = hrep;
 
-STIM.hisi = hisi; % need to keep the handle as well.
 set(GUI.hisi, 'String', num2str(STIM.InterSweepInterval));
 
 % read the number of STIMULI per sweep (high rate bursts)
@@ -44,6 +41,6 @@ set(GUI.hmax, 'String', num2str(STIM.SPLMax));
 
 set(GUI.hstep, 'String', num2str(STIM.SPLStep));
 
-set(GUI.hflist, 'String', STIM.FreqList);
+%set(GUI.hflist, 'String', STIM.FreqList);
 
 drawnow;

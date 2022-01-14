@@ -5,6 +5,7 @@ classdef abr4_STIM_struct
     properties
         % Hardware structure
         Info  % text string identifying this structure
+        Date % date of last change
         RP2COFFlag  % RP2 flag (does this belong in HW?)
         period  % stimulus period (time between stimuli)
         delay  % stimulus delay in msec from trigger
@@ -49,6 +50,7 @@ classdef abr4_STIM_struct
             %UNTITLED2 Construct an instance of this class
             %   Detailed explanation goes here
             obj.Info = 'ABR4 StimFile';
+            obj.Date = '';
             obj.RP2COFFlag = [];
             obj.sample_freq = 10000.0;
             obj.rate = 1e-4;
@@ -65,9 +67,6 @@ classdef abr4_STIM_struct
             obj.click_amp = 5.0;
             obj.StimPerSweep = 1;
             obj.Alternate = 0;
-            obj.hsr = 1.0;
-            obj.hisi = 40.0;
-            obj.hrep = 1.0;
             obj.NSweeps = 100.;
             obj.InterSweepInterval = 1.5;
             obj.avg_dur = 1.0;
