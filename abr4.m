@@ -95,20 +95,20 @@ if(nargin == 0) % initialize
 end
 
 % always check the speaker prior to stimulation
-[Speaker, Mic] = getSpeakerMic();
+[Speaker, ~] = getSpeakerMic();
 SPKR.id = Speaker;
-switch (SPKR.id)
+switch (SPKR.id(1:3))
     case {'ES1', 'EC1'}
         SPKR.attn = 0.0;
         SPLCAL.maxtones = 83.9; % New calibration, 5/1/2010 P. Manis Assumes ES Driver at - 6dB for linearity
         SPLCAL.maxclick = 79.5; % 84.8; 79 is with 6db attenuation ES1...
-    case {'MF1'}
+    case {'MF1', 'FF1'}
         SPKR.attn = 30.0; % for tones... 
         SPLCAL.maxtones = 110.0; % for mf1 speaker
         SPLCAL.maxclick = 108.5; % set with peak 1/4" mic output to match 80dB spl tone at "1e-6"
         % 114.8; % Old calibration 2007-4/30/2010db SPL with 0 dB attenuation (5 V signal)
     otherwise
-        fprintf(2, 'Speaker type not known\n');
+        fprintf(2, 'Speaker type not known: %s %s\n', SPKR.id(1:3), SPKR.id);
         return;
 end
 
@@ -120,7 +120,7 @@ switch(cmd)
         clear;
         return;
     case 'load' % load a stimulus file from disk
-        [FileName,PathName,FilterIndex] = uigetfile('*.abr4','Stim File to Load', 'StimFiles/*.abr4');
+        [FileName,PathName,~] = uigetfile('*.abr4','Stim File to Load', 'StimFiles/*.abr4');
         if FileName == 0 % cancelled out.
             return;
         end
@@ -594,7 +594,8 @@ end
 STIM.delay = STIM.tone_delay;
 updateStimParams;
 % interpolate to get the attenuation at the requested frequency
-splatF=interp1(CAL.Freqs, CAL.maxdB, freq, 'spline'); 
+% splatF=interp1(CAL.Freqs, CAL.maxdB, freq, 'spline'); 
+splatF = soundfuncs.spl_at_f(CAL.Freqs, CAL.maxdB, freq);
 attn = splatF-spl+SPKR.attn;
 if(attn <= 0)
     fprintf(1, 'Requesting sound louder than available with this speaker\nSetting to 0 attn\n');
