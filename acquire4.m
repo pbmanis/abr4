@@ -107,14 +107,14 @@ Total_nn = 0;
 Total_all = 0;
 
 % this routine accumulates the sum of the good trials into data
-% we normalized at the end, using nn and np (the number of good + and -
+% we average the data at the end, using nn and np (the number of good + and -
 % trials)
 %data(1,:) main signal on in-1,
 %data(2,:) alternate polarity
 %data(3,:)  in-2 - audio signal
 %data(4,:)  in-2 - audio signal
 
-% although we  generated a full stimulus (or used to), we're just going to get the first
+% although we generated a full stimulus (or used to), we're just going to get the first
 % stimulus waveform, or the first 2 if alternating, and let the dac run out
 % repeatedly.
 if(STIM.Alternate == 0)
@@ -449,7 +449,7 @@ STIM.ACQPars_tb = timebase_Display;
 set_status('Done');
 % fid = fopen('Tessaraw.txt','w');
 % fprintf(fid,'%6.2f  %12.8f\n',rawdata);
-fprintf(2, 'max ch 2: %f\n', md);
+% fprintf(2, 'max ch 2: %f\n', md);
 
 end
 

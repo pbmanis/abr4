@@ -2,6 +2,7 @@ function [CALIBRATION] = get_calibration_info(Speaker, Mic, CALIBRATION)
 
 % verify dates of last calibrations. If more than one week, refuse to
 % proceed.
+max_days = 14;
 mic_struct = abr4_microphone_struct();
 mic = load(sprintf('microphone_%s.cal', Mic), '-mat');
 MIC = mic_struct.from_struct(mic.MIC);
@@ -20,17 +21,17 @@ spk_date = datetime(SPKR.Date);
 chk_date = datetime(CHK75.Date);
 mic_days = caldays(between(mic_date, today, 'days'));
 CALIBRATION.Needs_Cal = false;
-if mic_days > 7
+if mic_days > max_days
     fprintf(2, 'Last microphone calibration was more than 1 week ago, please recalibrate first\n');
     CALIBRATION.Needs_Cal = true;
 end
 spk_days = caldays(between(spk_date, today, 'days'));
-if spk_days > 7
+if spk_days > max_days
     fprintf(2, 'Last speaker calibration was more than 1 week ago, please recalibrate first\n');
     CALIBRATION.Needs_Cal = true;
 end
 chk_days = caldays(between(chk_date, today, 'days'));
-if chk_days > 7
+if chk_days > max_days
     fprintf(2, 'Last check75dB calibration was more than 1 week ago, please recalibrate first\n');
     CALIBRATION.Needs_Cal = true;
 end

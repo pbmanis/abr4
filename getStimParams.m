@@ -6,8 +6,8 @@ function [STIM] = getStimParams(STIM, GUI)
 STIM.Info = 'ABR4 StimFile';
 STIM.period = 100;
 STIM.risefall = 0.1;
-[spls, STIM] = get_spls(STIM, GUI);
-[freqs, STIM] = get_freqs(STIM, GUI);
+[~, STIM] = get_spls(STIM, GUI);
+[~, STIM] = get_freqs(STIM, GUI);
 STIM.NIFreq = 500000;
 STIM.tone_delay = 1.0;
 STIM.tone_delay_mapping = 10.0;
@@ -121,5 +121,5 @@ if(max([freqs{:}]) < 100) % then they meant kHz, not Hz !
         freqs{i} = freqs{i}*1000;
     end
 end
-STIM.FreqList = freqs;
+STIM.FreqList = freqs{1};
 return;

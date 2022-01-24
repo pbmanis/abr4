@@ -15,6 +15,7 @@ classdef abr4_STIM_struct
         sample_freq  % RP2.1 input sample frequency
         rate  % 1./sample_freq
         Blocks  % 
+        sound_type % string for the sound type in use
         tone_delay  % delay for tone pip
         tone_delay_mapping  % delay for tone pip in mapping mode
         click_delay  % delay for click
@@ -55,6 +56,7 @@ classdef abr4_STIM_struct
             obj.sample_freq = 10000.0;
             obj.rate = 1e-4;
             obj.Blocks = 1;
+            obj.sound_type = '';
             obj.period = 1.0;
             obj.delay = 1.0;
             obj.ipi = 10.;

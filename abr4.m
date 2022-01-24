@@ -86,30 +86,29 @@ if(nargin == 0) % initialize when entered for the first time.
     [HW, STIM, CALIBRATION] = hardware_initialization(HW, STIM, CALIBRATION); % init the hardware.
     %    DataDirectory = 'C:\Users\Experimenters\Desktop\ABR_Data';
     HW.IN_ACQ = 0; % flag for when we are busy in acquisition
+
     hf = [];
     PLOTS.responsemap = [];
     [Speaker, Mic] = getSpeakerMic();
     CALIBRATION = get_calibration_info(Speaker, Mic, CALIBRATION);
     
     CALIBRATION.SPKR.id = Speaker;
-    CALIBRATION.SPKR.attn = 0;
     msg_pos = get(GUI.hcursor, 'Position');
     set(gcf, 'UserData', []);
     PLOTS.signal1 = findobj('tag', 'ABR_Stimulus1');
     PLOTS.signal2 = findobj('tag', 'ABR_Stimulus2');
     PLOTS.data = findobj('tag', 'ABR_AvgData');
     PLOTS.responsemap = findobj('tag', 'ABR_ResponseMap');
-    
     %     datac_setcrosshair(PLOT.signal1, 'ABR_stim1', 'ms', 'V', msg_pos);
     %     datac_setcrosshair(PLOT.signal2, 'ABR_stim2', 'ms', 'V', msg_pos);
     %     datac_setcrosshair(PLOT.data, 'ABR_data', 'ms', '\microV', msg_pos);
     %     datac_setcrosshair(PLOT.responsemap, 'ABR_map', 'F (kHz)', 'SPL(dB)', msg_pos);
-
     HW = set_attn(HW, -1);
     dac_zero;
     STOP = 0;
     last_data = 'clickabr';
     GUI = GUI.initialize();
+    STIM = getStimParams(STIM, GUI); % now we can populate the STIM from the GUI
     
     return;
 end
@@ -123,7 +122,7 @@ switch (CALIBRATION.SPKR.id)
         CALIBRATION.SPLCAL.maxtones = 83.9; % New calibration, 5/1/2010 P. Manis Assumes ES Driver at - 6dB for linearity
         CALIBRATION.SPLCAL.maxclick = 79.5; % 84.8; 79 is with 6db attenuation ES1...
     case {'MF1'}
-        CALIBRATION.SPKR.attn = 30.0; % for tones...
+%         CALIBRATION.SPKR.attn = 30.0; % for tones...
         CALIBRATION.SPLCAL.maxtones = 110.0; % for mf1 speaker
         CALIBRATION.SPLCAL.maxclick = 108.5; % set with peak 1/4" mic output to match 80dB spl tone at "1e-6"
         % 114.8; % Old calibration 2007-4/30/2010db SPL with 0 dB attenuation (5 V signal)
@@ -147,24 +146,8 @@ switch(cmd)
         D = struct("HW", HW, "STIM", STIM, "CALIBRATION", CALIBRATION);
         return
     case 'load' % load a stimulus file from disk
-        [FileName,PathName,~] = uigetfile('*.abr4','Stim File to Load', 'StimFiles/*.abr4');
-        if FileName == 0 % cancelled out.
-            return;
-        end
-        
-        s = load([PathName FileName], '-mat');
-        isfield(s.STIM, 'Info');
-        s.STIM.Info
-        if isfield(s.STIM, 'Info') && strcmp(s.STIM.Info, 'ABR4 StimFile')
-            STIM = s.STIM;
-        else
-            fprintf(2, 'File does not appear to be an ABR4 Stim File\n');
-            return;
-        end
-        STIM = updateStimParams(STIM, GUI); % store info back to the window...
-        if ~isempty(GUI.filename)
-            set(GUI.filename, 'String', FileName);
-        end
+        STIM = loadStim(STIM, GUI);
+
         
     case 'save' % save a stimulus file to disk
         [FileName,PathName] = uiputfile('*.abr4','Stim File to Save',...
@@ -172,7 +155,7 @@ switch(cmd)
         if FileName == 0 % cancelled out.
             return;
         end
-        [STIM] = getStimParams(STIM); % read the current data in the window.
+        [STIM] = getStimParams(STIM, GUI); % read the current data in the window.
         save([PathName FileName], 'HW');
         hfn = findobj('tag', 'ABR_StimFile');
         if ~isempty(GUI.hstimfilename)
@@ -237,7 +220,7 @@ switch(cmd)
                 if(isempty(STIM.spls) || isempty(STIM.freqs))
                     return;
                 end
-                clear_plots(PLOTS, DATA);
+                clear_plots(PLOTS, STIM, DATA);
                 fr =STIM.freqs{1}(:);
                 maxr = zeros(length(STIM.spls), length(fr));
                 set(PLOTS.responsemap, 'XLim', [min(0.8*fr), max(1.2*fr)]);
@@ -266,11 +249,13 @@ switch(cmd)
         if(HW.IN_ACQ)
             return;
         end
-        if(CALIBRATION.Needs_Cal)
-            return;
-        end
+%         if(CALIBRATION.Needs_Cal)
+%             return;
+%         end
         [STIM] = getStimParams(STIM, GUI);
-        clear_plots(PLOTS, DATA);
+        disp("STIM: ")
+        disp(STIM)
+        clear_plots(PLOTS, STIM, DATA);
         REFERENCE = [];
         hstat = findobj('tag', 'ABR_Status');
         disp(STIM)
@@ -289,8 +274,8 @@ switch(cmd)
         set(GUI.hcurrentfrequency, 'String', 'Click');
         
         if strcmp(cmd, 'click_test')
-            nspl = 1;
-            spllist = [75];
+            nspl = 10;
+            spllist = [75, 75, 75, 75, 75, 75, 75, 75, 75, 75];
             mode = 'test';
             if(ishandle(GUI.hstimfilename))
                 set(hstimfilename, 'string', '   ');
@@ -303,6 +288,7 @@ switch(cmd)
                 set(GUI.hstimfilename, 'string', '   ');
             end
         end
+        STIM.sound_type = 'click';
         at = NaN*ones(nspl, 1);
         maxr = NaN*zeros(nspl, 1);
         for i = 1 : nspl
@@ -348,13 +334,13 @@ switch(cmd)
         DATA.CDATAn = DATA.CDATAn';
         spl =STIM.spls';
         if strcmp(cmd, 'click')
-            CDATAp = DATA.CDATAp;
+            CDATAp = DATA.CDATAp;  % can't save part of a structure
             CDATAn = DATA.CDATAn;
             save(fnamep, 'CDATAp', '-ascii', '-tabs');
             save(fnamei, 'spl', '-ascii', '-tabs'); % save intensity list also
             save(fnamen, 'CDATAn', '-ascii', '-tabs');
             % make a structure with all the data and parameters
-            bigdata = struct('CAL', CALIBRATION, 'DATA', DATA, 'STIM', STIM, 'HARDWARE', HW, 'spl', spl);
+            bigdata = struct('CAL', CALIBRATION, 'DATA', DATA, 'STIM', STIM, 'HARDWARE', HW);
             save(fname_bigdata, 'bigdata', '-mat');
         end
         last_data = cmd;
@@ -368,30 +354,27 @@ switch(cmd)
         if CALIBRATION.Needs_Cal
             return
         end
-        clear_plots(PLOTS, DATA);
+        clear_plots(PLOTS, STIM, DATA);
         HW.STOP = 0;
-        [STIM] = getStimParams(STIM);
-        % Get the calibration frequency map for the current speaker
-        %
-        % load(sprintf('frequency_%s.cal', Speaker), '-mat'); % get calibration file. Result is in CAL
-        if(isempty(STIM.spls) || isempty(STIM.freqs))
+        [STIM] = getStimParams(STIM, GUI);
+        if(isempty(STIM.spls) || isempty(STIM.FreqList))
             return;
         end
         hstat = findobj('tag', 'ABR_Status');
         
         if strcmp(cmd, 'tone_test')
-            spllist = [75]; %#ok<*NBRAK>
-            fr = [8000];
+            spllist = [75, 75, 75, 75, 75, 75, 75, 75, 75, 75];
+            fr = [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000];
             mode = 'test';
         elseif strcmp(cmd, 'tone_info')
             nspl = length(STIM.spls);
             spllist = STIM.spls;
-            fr =STIM.freqs{1}(:);
+            fr = STIM.FreqList; % STIM.freqs{1}(:);
             mode = 'info';
         else
             nspl = length(STIM.spls);
             spllist =STIM.spls;
-            fr =STIM.freqs{1}(:);
+            fr =STIM.FreqList; % freqs{1}(:);
             mode = 'real';
         end
         GrandDatap = cell(length(fr), 1);
@@ -440,7 +423,7 @@ switch(cmd)
             end
             
             for i = 1:length(spllist)
-                [HW, stf] = check_stop(HW, 0);
+                [HW, stf] = check_stop(HW, 0);  % check innermost, every trial
                 if stf == 1 % successful STOP from the button
                     err = 1;
                     return;
@@ -448,6 +431,7 @@ switch(cmd)
                 
                 [DATA, err] = tone_map(cmd, fr(j), spllist(i), HW, CALIBRATION, STIM, DATA, PLOTS, GUI); % main tone abr routine
                 if(err ~= 0)
+                    err = 1;
                     return;
                 end
                 set(GUI.hcurrentSPL, 'String', sprintf('%3.1f dB', spllist(i)));
@@ -470,9 +454,12 @@ switch(cmd)
             DATA.CDATAp = DATA.CDATAp';
             DATA.CDATAn = DATA.CDATAn';
             if(~strcmp(cmd, 'tone_test'))
-                save(fnamep, 'DATA.CDATAp', '-ascii', '-tabs');
-                save(fnamen, 'DATA.CDATAn', '-ascii', '-tabs');
-                % make a structure with all the data and parameters
+                data_struct_p = DATA.CDATAp;  % can't save a part of a structure?
+                data_struct_n = DATA.CDATAn;
+                save(fnamep, 'data_struct_p', '-ascii', '-tabs');
+                save(fnamen, 'data_struct_n', '-ascii', '-tabs');
+                % make a structure with all the data and parameters - 
+                % even better!
                 bigdata = struct('CAL', CALIBRATION, 'DATA', DATA, 'STIM', STIM, 'HARDWARE', HW);
                 save(fname_bigdata, 'bigdata', '-mat');
             end
@@ -488,7 +475,7 @@ switch(cmd)
         
         
     case 'abort'
-        STOP = 1;
+        HW.STOP = 1;
         last_data = 'None'; %#ok<*NASGU>
         fprintf(2, 'Abort hit\n');
     otherwise
@@ -512,9 +499,9 @@ function [DATA, STIM, err] = click_abr(spl, mode, HW, STIM, CALIBRATION, DATA, P
 % if mode is 'test', we run in a reduced acquisition format
 %
 
-fprintf(2, 'Calling click_abr\n');
+% fprintf(2, 'Calling click_abr\n');
 err = 0;
-STIM.rate = 1/STIM.sample_freq; % rate is in sec per point (recording side).
+STIM.rate = 1.0/STIM.sample_freq; % rate is in sec per point (recording side).
 STIM.click_dur = 0.1;  % default is 50 microseconds (0.05)
 keep_reference = 1;
 DATA.REFERENCE = [];
@@ -547,14 +534,14 @@ if(attn < 0)
     fprintf(1, 'Requesting sound louder than available with this speaker\nSetting to 0 attn\n');
     attn = 0;
 end
-clear_plots(PLOTS, DATA, keep_reference);
+clear_plots(PLOTS, STIM, DATA, keep_reference);
 fl = get_SignalPlotFlag(1);
 STIM.Monitor = get_SignalPlotFlag(2);
 if fl == 1
     ts = (0:length(STIM.wave)-1)*1000*STIM.clock;
     maxt = (length(STIM.wave)-1)*1000*STIM.clock; % in msec
     %     figure; plot(ts,PLOTS.signal1);
-    plot(PLOTS.signal1, ts,STIM.wave, 'color', 'blue');
+    plot(PLOTS.signal1, ts, STIM.wave, 'color', 'blue');
     set(PLOTS.signal1, 'XLim', [0 maxt]);
     drawnow;
 end
@@ -562,7 +549,7 @@ end
 [data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, attn);
 HW = set_attn(HW, -1);
 if(err == 0)
-    [DATA, davg] = final_plot(data, STIM, DATA, PLOTS, keep_reference);
+    [DATA, davg] = final_plot(data, STIM, PLOTS, DATA, keep_reference);
     DATA.DATAp = data(1,:);
     DATA.DATAn = data(2,:);
     DATA.DATAa = davg;
@@ -620,13 +607,14 @@ STIM.delay =STIM.tone_delay;
 STIM = updateStimParams(STIM, GUI);
 % interpolate to get the attenuation at the requested frequency
 CAL = CALIBRATION.SPKR;
-splatF=interp1(CAL.Freqs, CAL.maxdB, freq, 'spline');
-attn = splatF-spl+SPKR.attn;
+[splatF] = soundfuncs.spl_at_f(CALIBRATION.SPKR.Freqs, CALIBRATION.SPKR.maxdB, freq);
+% splatF=interp1(CALIBRATION.SPKR.Freqs, CALIBRATION.SPKR.maxdB, freq, 'spline');
+attn = splatF - spl + CALIBRATION.SPKR.attn;
 if(attn <= 0)
     fprintf(1, 'Requesting sound louder than available with this speaker\nSetting to 0 attn\n');
     return;
 end
-fprintf(2, 'mode: %s', mode)
+% fprintf(2, 'mode: %s', mode)
 if strcmp(mode, 'tone_info')
     fprintf(2, 'Freq: %8.2f  SPL: %8.2f  Attn: %6.1f\n', freq, spl, attn);
     return;
@@ -634,11 +622,9 @@ end
 
 switch (mode)
     case {'tone_abr', 'test', 'tone_test'}
-        disp ' tone_abr'
         [STIM.wave,STIM.clock] = tonepip(CALIBRATION.SPLCAL.ToneVoltage, freq,STIM.tone_delay, ...
             5, 0.5, 0,STIM.NIFreq,STIM.ipi, tnp,STIM.Alternate); % convert rate to usec per point
     case {'tone_mapping', 'tone_info'}
-        disp 'tone_mapping'
         sel = get(GUI.hToneMapDuration, 'value');
         slist = str2num(get(GUI.hToneMapDuration, 'String')); %#ok<ST2NM>
         tdur = slist(sel);
@@ -648,7 +634,7 @@ switch (mode)
 end
 
 
-clear_plots(PLOTS, DATA);
+clear_plots(PLOTS, STIM, DATA);
 fl = get_SignalPlotFlag(1);
 STIM.Monitor = get_SignalPlotFlag(2);
 if fl == 1
@@ -660,14 +646,25 @@ if fl == 1
     
     drawnow;
 end
+[HW, stf] = check_stop(HW, 0);  % check before trial
+if stf == 1 % successful STOP from the button
+    err = 1;
+    return;
+end
 
-[data, STIM, err] = acquire4('attn', HW, PLOTS, STIM, GUI, attn);
+[data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, attn);
 HW = set_attn(HW, -1);
 if (err ~= 0)
     return
 end
+[~, stf] = check_stop(HW, 0);  % check after trial
+if stf == 1 % successful STOP from the button
+    err = 1;
+    return;
+end
+
 if(err == 0)
-    [DATA, davg] = final_plot(data, STIM, DATA, PLOTS);
+    [DATA, davg] = final_plot(data, STIM, PLOTS, DATA);
     DATA.DATAp = data(1,:);
     DATA.DATAn = data(2,:);
     DATA.DATAa = davg;
@@ -680,7 +677,7 @@ if(strcmp(mode, 'tone_test'))
 end
 end
 
-function [DATA, davg] = final_plot(data, STIM, DATA, PLOTS, varargin)
+function [DATA, davg] = final_plot(data, STIM, PLOTS, DATA, varargin)
 %tr = (0:length(data)-1)*STIM.rate*1000; % express rate in usec
 
 if(STIM.Alternate)

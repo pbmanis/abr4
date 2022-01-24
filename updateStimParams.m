@@ -3,6 +3,7 @@ function [STIM] = updateStimParams(STIM, GUI)
 % and store them in the STIM structure or vice versa,,
 % probably need to clean this up... 
 
+
 STIM.Info = 'ABR4 StimFile';
 STIM.Date = date; % store date of last change
 

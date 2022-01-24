@@ -8,7 +8,7 @@ end
 if(HW.STOP == 1) % while waiting, check for stop.
     HW.RP.SoftTrg(0); % invoke(RP, 'softtrg', 0);
     HW.RP.Halt; % invoke(RP, 'halt');
-    set_attn(120);
+    set_attn(HW, 120);
     HW.AO.stop;
     %queueOutputData(AO, 0); % make sure output is really back to 0
     HW.IN_ACQ = 0;

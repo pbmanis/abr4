@@ -9,6 +9,7 @@ classdef abr4_data_struct
         DATAn = [];
         CDATAp = [];
         CDATAn = [];
+        Timebase = [];
         REFERENCE = [];
     end
     
@@ -22,6 +23,7 @@ classdef abr4_data_struct
             obj.CDATAp = [];
             obj.CDATAn = [];
             obj.REFERENCE = [];
+            obj.Timebase = [];
         end
     end
 end

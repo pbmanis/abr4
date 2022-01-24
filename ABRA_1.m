@@ -6,7 +6,7 @@ function [rmap, freqs, levels] = ABRA_1(arg)
 
 if(nargin == 0)
     return;
-end;
+end
 sr=1/100000; % 4/97635;
 maxt = 8;
 persistent abr_path
@@ -22,7 +22,7 @@ switch(computer)
         abr_path = '/users/pbmanis/documents/CurrentProjects/AR/Alex-ABR/';
     case 'MAC'
         abr_path = '/users/pmanis/desktop/abr/';
-end;
+end
 %end;
 
 switch(arg)
@@ -32,7 +32,7 @@ switch(arg)
         abr_path = pathname;
         if(filename==0)
             return;
-        end;
+        end
         [p, f] = fileparts(filename);
         %        fb = f(1:(length(f)-2));
         fb = f(1:14);
@@ -64,7 +64,7 @@ switch(arg)
         i3 = min(i3);
         for i = 1:size(d,2)
             d(:,i) = d(:,i) - mean(d(1:i0,i));
-        end;
+        end
 
         htxt = findobj('tag', 'abra_info');
         [pfp, ffp, efp] = fileparts(fp);
@@ -72,7 +72,7 @@ switch(arg)
         if(~isempty(htxt) && ishandle(htxt))
             set(htxt, 'String', sprintf('Dir:%s\nFiles:\n%s\n%s', ...
                 abr_path, ffn, ffp));
-        end;
+        end
         % make plot with data scaled all the same
         %
         mx = max(max(d));
@@ -81,20 +81,20 @@ switch(arg)
             mx1 = mx;
         else
             mx1 = mn;
-        end;
+        end
         m = size(d,2);
         bl=zeros(n,m); % matching baseline
         fullscale = (m+2)*mx1; % max plot...
         for i = 1:m
             %offset(i) = fullscale - (i)*mx1;
             offset(i) = (m-i+1)*mx1;
-        end;
+        end
         hf = findobj('tag', 'ABRA_g2'); % get the graphic window
         if(isempty(hf))
             subplot('Position', [0.75, 0.1, 0.2, 0.25]);
             set(gca, 'Tag', 'ABRA_g2');
             hf = findobj('tag', 'ABRA_g2'); % get the graphic window
-        end;
+        end
         axes(hf);
         hold off
         for i = 1:m
@@ -104,24 +104,24 @@ switch(arg)
             text(t(1), bl(1,i)+offset(i), sprintf('%6.1f dB', ds(m-i+1)), ...
                 'VerticalAlignment', 'top');
 
-        end;
+        end
         if(fullscale < 0)
             ylims = [fullscale 0];
         else
             ylims = [0 fullscale];
-        end;
+        end
         set(gca, 'YLim', ylims);
         set(gca, 'xlim', [0 maxt]);
         set(gca, 'tag', 'ABRA_g2');
         xlabel('ms')
-        calX = [0 0.0]
-        calY = [0 2.0e-6]
+        calX = [0 0.0];
+        calY = [0 2.0e-6];
         plot(calX, calY, 'k-', 'linewidth', 2);
         hf = findobj('tag', 'ABRA_g1'); % get the graphic window
         if(isempty(hf))
             hf = subplot('Position', [0.1 0.1 0.5 0.75]);
             set(hf, 'tag', 'ABRA_g1');
-        end;
+        end
         axes(hf);
         hold off
         for i = 1:m
@@ -131,7 +131,7 @@ switch(arg)
             plot(t, bl(:,i)+offset(i), '--');
             text(t(1), bl(1,i)+offset(i), sprintf('%6.1f dB', ds(m-i+1)), ...
                 'VerticalAlignment', 'top');
-        end;
+        end
         set(gca, 'YLim', ylims);
         set(gca, 'xlim', [0 maxt]);
         set(gca, 'tag', 'ABRA_g1');
