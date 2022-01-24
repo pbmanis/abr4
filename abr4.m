@@ -260,7 +260,7 @@ switch(cmd)
         fnamei = sprintf('%s/%4d%02d%02d-%02d%02d-SPL.txt', DataDirectory, c(1), c(2), c(3), c(4), c(5));
         hf = findobj('Tag', 'ABR_CurrFreq');
         set(hf, 'String', 'Click');
-        
+        STIM.sound_type = 'click';
         if strcmp(cmd, 'click_test')
             nspl = 1;
             spllist = [75];
@@ -322,12 +322,17 @@ switch(cmd)
         set(hstat, 'String', 'Done');
         CDATAp = CDATAp';
         CDATAn = CDATAn';
-        spl = STIM.spls';
+        spls = STIM.spls';
         if strcmp(cmd, 'click')
+            save(fnamei, 'spls', '-ascii', '-tabs'); % save intensity list also
             save(fnamep, 'CDATAp', '-ascii', '-tabs');
-            save(fnamei, 'spl', '-ascii', '-tabs'); % save intensity list also
             save(fnamen, 'CDATAn', '-ascii', '-tabs');
+            % make a structure with all the data and parameters
+            DATA = struct('CDATAp', CDATAp, 'CDATAn', CDATAn);
+            bigdata = struct('CAL', CALIBRATION, 'STIM', STIM, 'HARDWARE', HW, 'DATA', DATA);
+            save(fname_bigdata, 'bigdata', '-mat');
         end
+
         last_data = cmd;
         
         
@@ -362,6 +367,7 @@ switch(cmd)
             fr = STIM.freqs{1}(:);
             mode = 'real';
         end
+        STIM.sound_type = 'tone';
         GrandDatap = cell(length(fr), 1);
         GrandDatan = cell(length(fr), 1);
         
@@ -481,7 +487,7 @@ function [err] = click_abr(spl, mode)
 %
 global STIM DATAa DATAp DATAn REFERENCE SPLCAL AO HARDWARE PLOTHANDLES
 
-fprintf(2, 'Calling click_abr\n');
+% fprintf(2, 'Calling click_abr\n');
 err = 0;
 STIM.rate = 1/STIM.sample_freq; % rate is in sec per point (recording side).
 STIM.click_dur = 0.1;  % default is 50 microseconds (0.05)
@@ -537,8 +543,8 @@ if(err == 0)
     DATAp = data(1,:);
     DATAn = data(2,:);
     DATAa = davg;
-else
-    fprintf(2, 'acquire4 err: %d\n', err);
+elseif(err > 0)
+    fprintf(2, 'acquire4 acquisition error number: %d\n', err);
 end
 if keep_reference && err == 0
     REFERENCE = davg;

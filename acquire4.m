@@ -163,7 +163,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     if ~isempty(AO)
         stf = check_stop(0);
         if stf == 1 % successful STOP from the button
-            err = 1;
+            err = -1;
             return;
         end
         set_attn(local_attn);

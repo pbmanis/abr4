@@ -9,7 +9,7 @@ set_scale();
 if nargin > 0
     if ~isempty(REFERENCE)
         plot(PLOTHANDLES.data,  ACQPars.tb, REFERENCE, 'k-', 'linewidth', 2.0);
-    end;
-end;
+    end
+end
 
 return;
