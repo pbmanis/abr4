@@ -18,7 +18,7 @@ if isempty(HW.RP)
     end
 end
 
-[HW, err] = rp_setup(nRecordPoints, HW, 'microphone');
+[HW, err] = rp_setup(HW, STIM, nRecordPoints, 'microphone');
 startBackground(HW.AO); % get ni board read to go, then trigger the rp
 
 HW.RP.SoftTrg(1); % start.
@@ -34,7 +34,7 @@ HW.RP.SoftTrg(2);
 ch1 = 0;
 ch2=double(HW.RP.ReadTagV('data_out2', 0, nRecordPoints));
 HW.AO.stop;
-set_attn(-1);
+set_attn(HW, -1);
 HW.RP.SoftTrg(2);
 HW.RP.Halt;
 end       

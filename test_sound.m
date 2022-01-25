@@ -3,8 +3,10 @@ function [ch2] = test_sound(freq, dbspl, duration)
 % if a 3rd argument is present, it will be the duration.
 
 H = abr4('gethw');
+
 STIM = H.STIM;
 SPKR = H.CALIBRATION.SPKR;
+HW = H.HW;
 
 if nargin <= 2
     duration = 5.0;
@@ -28,21 +30,21 @@ splatF = interp1(CAL.Freqs, CAL.dBSPL, freq, 'spline');
 fprintf(1, "splatf: %7.2f\n", splatF);
 [CAL.Freqs*1e-3; CAL.dBSPL']';
 attn = splatF - dbspl + CAL.CalAttn;
-figure
-plot(CAL.Freqs, CAL.dBSPL, 'ko');
-spl_freqs = (min(CAL.Freqs):100:max(CAL.Freqs));
-splatF2 = interp1(CAL.Freqs, CAL.dBSPL, spl_freqs, 'spline'); 
-hold on
-%plot(spl_freqs, splatF2, 'r-');
+% figure
+% plot(CAL.Freqs, CAL.dBSPL, 'ko');
+% spl_freqs = (min(CAL.Freqs):100:max(CAL.Freqs));
+% splatF2 = interp1(CAL.Freqs, CAL.dBSPL, spl_freqs, 'spline'); 
+% hold on
+% plot(spl_freqs, splatF2, 'r-');
 if(attn < 0)
     attn = 0.0;
 end
 nr = floor(STIM.sample_freq*duration*1.2);
 [STIM.wave, STIM.clock] = tonepip(10.0, freq, 0, duration*1000., 10.0, 0, STIM.NIFreq, 10, 1, 0);
-set_attn(attn);
+set_attn(HW, attn);
 fprintf(1, "Attenuator: %5.1f\n", attn);
 tstim = (0:1/STIM.NIFreq:(length(STIM.wave)-1)/STIM.NIFreq);
-[~, ch2, ~] = calstim(nr);
+[~, ch2, ~] = calstim(nr, HW, STIM);
 ybp =  ch2; % filter(notchfilter, ch2);
 trec = (0:1/STIM.sample_freq:(nr-1)/STIM.sample_freq);
 ts1 = floor(0.1*duration*STIM.sample_freq);
@@ -53,7 +55,7 @@ fprintf(1, "Raw Vrms:       %8.3f mV\n",(1e3*rms(ybp)));
 amp_cosinor_rms_V = amp_cosinor/sqrt(2);
 fprintf(1, "Signal Vrms with Gain = %.1f dB Vsig = %8.5f V, Mic Vref: %8.5f V\n", ...
     MIC.Gain, amp_cosinor_rms_V, MIC.Vref_bp);
-db = splfuncs.compute_spl(amp_cosinor_rms_V, MIC);
+db = soundfuncs.compute_spl(amp_cosinor_rms_V, MIC);
 fprintf(1, "Measured dBSPL: %7.1f\n", db);
 figure
 subplot(2,1,1);

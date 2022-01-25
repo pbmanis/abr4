@@ -7,6 +7,8 @@ function [HW, err] = rp_setup(HW, STIM, nRecordPoints, varargin)
 
 
 err = 0;
+HW
+
 if strcmp(HW.HARDWARE, 'None')
     err = 1;
     return;
