@@ -1,4 +1,4 @@
-function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, GUI, varargin)
+function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, GUI, CALIBRATION, varargin)
 % Data acquisition routine (for all acquisition)
 % Expects TDT RP2.1 for acquistion, PA5 attenuator, and NI6113 DAC card.
 % Includes the ability to perform limited testing using a sound card.
@@ -56,7 +56,7 @@ if nargin > 0 && (strcmp(cmd, 'microphone') ...
         correctCal = 1; % allows us to check the calibration.
         cmd = 'calibrate';
     end
-    HW = calibrations(cmd, correctCal, HW);
+    HW = calibrations(cmd, correctCal, HW, CALIBRATION, STIM);
     return;
 end
 
@@ -407,16 +407,16 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     % fprintf(1, 'Ch2 max in sweepdata: %f, nonalt: %d\n', max(sweepdata(3,:)), Sweep_nonalt);
     if(STIM.Monitor == 1) % only do this if we have the monitor set on
         hold off
-        % fprintf(1, 'plotting max: %f  x %f\n', max(sweepdata(3,:)), max(timebase_Display));
-        plot(PLOTS.PLOTHANDLES.signal2, timebase_Display, sweepdata(3,:), 'color', 'red');
+         fprintf(1, 'plotting max: %f  x %f\n', max(sweepdata(3,:)), max(timebase_Display));
+        plot(PLOTS.signal2, timebase_Display, sweepdata(3,:), 'color', 'red');
         if(STIM.Alternate)
             hold on
-            plot(PLOTS.PLOTHANDLES.signal2, timebase_Display, sweepdata(4,:), 'color', 'cyan');
+            plot(PLOTS.signal2, timebase_Display, sweepdata(4,:), 'color', 'cyan');
         end
         md = max(abs(sweepdata(3,:)));
-        set(PLOTS.PLOTHANDLES.signal2, 'xLimMode', 'Auto');
-        set(PLOTS.PLOTHANDLES.signal2, 'yLimMode', 'Auto');
-        %trace_scale(md, PLOTS.PLOTHANDLES.signal2);
+        set(PLOTS.signal2, 'xLimMode', 'Auto');
+        set(PLOTS.signal2, 'yLimMode', 'Auto');
+        %trace_scale(md, PLOTS.signal2);
     end
     
     % delay to next sweep:

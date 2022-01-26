@@ -118,14 +118,25 @@ end
 CALIBRATION.SPKR.id = Speaker;
 switch (CALIBRATION.SPKR.id)
     case {'ES1', 'EC1'}
-        CALIBRATION.SPKR.attn = 0.0;
+        CALIBRATION.SPKR.CalAttn = 0.0;
         CALIBRATION.SPLCAL.maxtones = 83.9; % New calibration, 5/1/2010 P. Manis Assumes ES Driver at - 6dB for linearity
         CALIBRATION.SPLCAL.maxclick = 79.5; % 84.8; 79 is with 6db attenuation ES1...
     case {'MF1'}
-%         CALIBRATION.SPKR.attn = 30.0; % for tones...
+        CALIBRATION.SPKR.CalAttn = 20.0; % for tones...
         CALIBRATION.SPLCAL.maxtones = 110.0; % for mf1 speaker
         CALIBRATION.SPLCAL.maxclick = 108.5; % set with peak 1/4" mic output to match 80dB spl tone at "1e-6"
-        % 114.8; % Old calibration 2007-4/30/2010db SPL with 0 dB attenuation (5 V signal)
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %  26 January 2022 pbmanis
+        %  Re-calibration of the ABR system. 
+        % click calibrated by averaging the microphone waveform
+        % (click_cal.m) with 10 dB attenuation. This yields a value of 90.0
+        % dB SPL (measured peak to peak), at 0 attenaution. 
+        % Click p-p voltage 22.1 mV at 80.03 dB (10 dB atten).
+        % Tone (16 kHz) p-p voltage 10.37 mV or 73.6 dB SPL (requested 75).
+        % Calibrations for tone done on the same day (26 Jan).
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        CALIBRATION.SPLCAL.maxclick = 90.0;  % 26 Jan 2022. Note 18.5 dB difference from prior. 
+         % 114.8; % Old calibration 2007-4/30/2010db SPL with 0 dB attenuation (5 V signal)
     otherwise
         fprintf(2, 'Speaker type not known\n');
         return;
@@ -164,7 +175,7 @@ switch(cmd)
         
     case {'calibrate', 'microphone', 'microphone104', 'checkcal'}
         % access calibration routines.
-        acquire4(cmd, HW, STIM, PLOTS, GUI);
+        acquire4(cmd, HW, STIM, PLOTS, GUI, CALIBRATION);
         
     case 'response_spec' % calculate the response spectrum
         if(~isempty(DATAp))
@@ -253,8 +264,6 @@ switch(cmd)
 %             return;
 %         end
         [STIM] = getStimParams(STIM, GUI);
-        disp("STIM: ")
-        disp(STIM)
         clear_plots(PLOTS, STIM, DATA);
         REFERENCE = [];
         hstat = findobj('tag', 'ABR_Status');
@@ -502,7 +511,7 @@ function [DATA, STIM, err] = click_abr(spl, mode, HW, STIM, CALIBRATION, DATA, P
 % fprintf(2, 'Calling click_abr\n');
 err = 0;
 STIM.rate = 1.0/STIM.sample_freq; % rate is in sec per point (recording side).
-STIM.click_dur = 0.1;  % default is 50 microseconds (0.05)
+STIM.click_dur = 0.1;  % default is 100 microseconds (0.1)
 keep_reference = 1;
 DATA.REFERENCE = [];
 
@@ -546,7 +555,7 @@ if fl == 1
     drawnow;
 end
 
-[data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, attn);
+[data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, CALIBRATION, attn);
 HW = set_attn(HW, -1);
 if(err == 0)
     [DATA, davg] = final_plot(data, STIM, PLOTS, DATA, keep_reference);
@@ -606,17 +615,27 @@ end
 STIM.delay =STIM.tone_delay;
 STIM = updateStimParams(STIM, GUI);
 % interpolate to get the attenuation at the requested frequency
-CAL = CALIBRATION.SPKR;
 [splatF] = soundfuncs.spl_at_f(CALIBRATION.SPKR.Freqs, CALIBRATION.SPKR.maxdB, freq);
+
 % splatF=interp1(CALIBRATION.SPKR.Freqs, CALIBRATION.SPKR.maxdB, freq, 'spline');
-attn = splatF - spl + CALIBRATION.SPKR.attn;
+attn = splatF - spl;
 if(attn <= 0)
     fprintf(1, 'Requesting sound louder than available with this speaker\nSetting to 0 attn\n');
     return;
 end
+if strcmp(mode, 'tone_test')
+disp(splatF)
+disp(freq)
+disp(attn)
+disp(spl)
+disp(CALIBRATION.SPKR.CalAttn)
+end
+
 % fprintf(2, 'mode: %s', mode)
 if strcmp(mode, 'tone_info')
+    disp(CALIBRATION.SPKR)
     fprintf(2, 'Freq: %8.2f  SPL: %8.2f  Attn: %6.1f\n', freq, spl, attn);
+    err = 2;
     return;
 end
 
@@ -652,7 +671,7 @@ if stf == 1 % successful STOP from the button
     return;
 end
 
-[data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, attn);
+[data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, CALIBRATION, attn);
 HW = set_attn(HW, -1);
 if (err ~= 0)
     return

@@ -5,7 +5,8 @@ function [ch1, ch2, HW, err] = calstim(nRecordPoints, HW, STIM)
 % 5/1/2010 Paul B. Manis
 % converted to matlab session interface to NIDAQ 9/28/2016
 %
-HW.AO.stop 
+
+HW.AO.stop;
 HW.AO.Rate = STIM.NIFreq; 
 % queueOutputData(AO, STIM.wave); % wave is FULL
 HW.AO.TriggersPerRun = 1;
@@ -37,4 +38,5 @@ HW.AO.stop;
 set_attn(HW, -1);
 HW.RP.SoftTrg(2);
 HW.RP.Halt;
+
 end       

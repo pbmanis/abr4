@@ -53,7 +53,7 @@ octave_calc computes the 1/n'th octave frequencies above and below a
             flow = f0/octfrac;
             fhigh = f0*octfrac;
             if fhigh > Fs/2.0
-                fhigh = floor(Fs/2.0);
+                fhigh = floor(Fs/2.2);
             end
             bp_freqs = [flow, fhigh];
         end
