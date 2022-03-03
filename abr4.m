@@ -55,7 +55,7 @@ if isempty(varargin) || (exist('HW', 'var') == 0)
     
     GUI = abr4_gui_struct; % don't initialize until the gui is built.
     
-    fprintf(2, 'Created structures\n');
+   % fprintf(2, 'Created structures\n');
     
 end
 
@@ -167,7 +167,7 @@ switch(cmd)
             return;
         end
         [STIM] = getStimParams(STIM, GUI); % read the current data in the window.
-        save([PathName FileName], 'HW');
+        save([PathName FileName], 'STIM');
         hfn = findobj('tag', 'ABR_StimFile');
         if ~isempty(GUI.hstimfilename)
             set(GUI.hstimfilename, 'String', FileName);
@@ -267,7 +267,6 @@ switch(cmd)
         clear_plots(PLOTS, STIM, DATA);
         REFERENCE = [];
         hstat = findobj('tag', 'ABR_Status');
-        disp(STIM)
         cla(PLOTS.responsemap);
         set(PLOTS.responsemap, 'XScale', 'linear');
         set(PLOTS.responsemap, 'YLimMode', 'manual');

@@ -157,7 +157,7 @@ end
 
 set_status('Running');
 plotSweep = cell(3, STIM.NSweeps);
-STIM.NSweeps = 2;
+% STIM.NSweeps = 2;
 for i = 1:STIM.NSweeps % loop over all the sweeps.
     sweepdata = zeros(4, interBlockLen);
     %    fprintf(2,'sweep: %d   stdacrepeat: %d \n', i, stdacrepeat);
@@ -174,6 +174,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
             return;
         end
         HW = set_attn(HW, local_attn);
+        pause(0.01);
         HW.AO.stop
         HW.AO.Rate = STIM.NIFreq;
         queueOutputData(HW.AO, STIM.wave); % wave is FULL
@@ -181,9 +182,10 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         set_status('Running');
         tic
         startBackground(HW.AO); % get ni board read to go, then trigger the rp
+        pause(0.1);  % give the system time to arm
         [HW, err] = rp_setup(HW, STIM, nRecordPoints+1000, 'start');
         if err == 1
-            fprintf(2, 'failed to start\n');
+            fprintf(2, 'Hardware failed to start\n');
             return;
         end
         recdur = nRecordPoints/STIM.sample_freq;

@@ -2,7 +2,6 @@ function [STIM] = getStimParams(STIM, GUI)
 % Get the stimulus parameters from the display window
 % and store them in the STIM structure
 
-
 STIM.Info = 'ABR4 StimFile';
 STIM.period = 100;
 STIM.risefall = 0.1;
@@ -86,16 +85,12 @@ STIM.amp_gain = amp_gain;
 function [spls, STIM] = get_spls(STIM, GUI)
 % return the sound pressure level sequence from the window
 %
-
-minspl = 0;
-maxspl = 120;
-stepspl = 10;
 % the tags in the windows are attenuations, but in this version
 % we treat as if SPL
 %
 minspl = str2double(get(GUI.hmin, 'string'));
 maxspl = str2double(get(GUI.hmax, 'string'));
-hstep = findobj('Tag', 'ABR_AttnStep');
+% hstep = findobj('Tag', 'ABR_AttnStep');
 stepspl = str2double(get(GUI.hstep, 'string'));
 if(minspl > maxspl)
     temp = maxspl;
@@ -112,8 +107,6 @@ return;
 function [freqs, STIM] = get_freqs(STIM, GUI)
 % return the frequency list from the window
 fllist = get(GUI.hflist, 'string');
-disp('fllist: ')
-disp(fllist)
 STIM.FreqList = fllist; % save the actual list as well.
 freqs = seq_parse(fllist);
 if(max([freqs{:}]) < 100) % then they meant kHz, not Hz !

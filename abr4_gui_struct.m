@@ -57,13 +57,15 @@ classdef abr4_gui_struct
         fllist = get(obj.hflist, 'string');
         fprintf(1, "fllist: %s", fllist);
         disp(obj.hsr)
-        hsr = get(obj.hsr, 'string');
-        disp(hsr)
-        fprintf(1, "hsr: %s", hsr);
+        obj.hsr = get(obj.hsr, 'string');
+        disp(obj.hsr)
+        fprintf(1, "hsr: %s", obj.hsr);
         end
-        function [x] = get_handle(obj)
-        x = findobj('Tag', 'ABR_FreqList');
-        disp('get tag for freqlsit')
+        function [x] = get_handle(guiobj)
+        x = findobj('Tag', guiobj);
+        disp('get tag for guiobj ')
+        dipsp(guiobj)
+        disp('handle = ')
         disp(x)
         end
     end
