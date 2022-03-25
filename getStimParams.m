@@ -114,5 +114,5 @@ if(max([freqs{:}]) < 100) % then they meant kHz, not Hz !
         freqs{i} = freqs{i}*1000;
     end
 end
-STIM.FreqList = freqs{1};
+STIM.freqs = cell2mat(freqs);
 return;

@@ -31,7 +31,7 @@ function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, GUI, CALIBRATION, va
 %
 % Jan 13 2021 P. Manis
 % Removing globals (new branch 'no-globals'). All data structures are
-% defined as 'persistent' in abr4. Structures are defined in classes. 
+% defined as 'persistent' in abr4. Structures are defined in classes.
 %
 %--------------------------------------------------------------------------
 %Tessa's variable (saving raw data):
@@ -40,7 +40,7 @@ rawdatacount=1;
 %--------------------------------------------------------------------------
 % Calibration Only:
 % Check the input cmd argument for commands that invoke calibration-related
-% routines. 
+% routines.
 %--------------------------------------------------------------------------
 err = 0;
 data = [];
@@ -159,20 +159,22 @@ set_status('Running');
 plotSweep = cell(3, STIM.NSweeps);
 % STIM.NSweeps = 2;
 for i = 1:STIM.NSweeps % loop over all the sweeps.
+    % check for the stop button
+    state = check_status(GUI);
+    fprintf(2, 'acquire4 State: %s\n', state);
+    if strcmp(state, 'Stopped')
+        fprintf(2, "stop with button, sweep level\n");
+        abr4('Stop', 'button in sweep loop');
+        err = 1;
+        return
+    end
     sweepdata = zeros(4, interBlockLen);
     %    fprintf(2,'sweep: %d   stdacrepeat: %d \n', i, stdacrepeat);
     STIM.Monitor = get_SignalPlotFlag(2); % allow plot flag to change when running
-    IN_ACQ = 1; %#ok<*NASGU>
-    STOP = 0; % make sure stop is reset first
+    HW.IN_ACQ = true; %#ok<*NASGU>
     sweepreject = 0;
     tic % time mark
     if ~isempty(HW.AO)
-        [HW, stf] = check_stop(HW, 0);
-        if stf == 1 % successful STOP from the button
-            fprintf(2, "stop with button");
-            err = 1;
-            return;
-        end
         HW = set_attn(HW, local_attn);
         pause(0.01);
         HW.AO.stop
@@ -186,6 +188,8 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         [HW, err] = rp_setup(HW, STIM, nRecordPoints+1000, 'start');
         if err == 1
             fprintf(2, 'Hardware failed to start\n');
+            set_status('Stopped');
+            abr4('Stop', 'Error in RP setup');
             return;
         end
         recdur = nRecordPoints/STIM.sample_freq;
@@ -194,39 +198,48 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         while( toc < recdur) %
             curindex=HW.RP.GetTagVal('Data_index');
             pause(0.01);
-            [HW, stf] = check_stop(HW, 0);
-            if stf == 1 % successful STOP from the button
-                fprintf(2, "stop with button");
+            state = check_status(GUI);
+            if strcmp(state, 'Stopped')
+                fprintf(2, "stop with button\n");
+                abr4('stop_acq', 'button in toc loop');
                 err = 1;
-                return;
+                return
             end
-        end
-        % read the data and stop the hardware
-        pause(0.05); % wait for the data to become fully available
-        ch1 = double(HW.RP.ReadTagV('data_out1', 0, nRecordPoints));
-        % think about this:
-        %        da=HW.RP.ReadTagVEX('data_out1', 0, nRecordPoints, 'I32', 'F64', 2);
-        if STIM.Monitor
-            ch2 = double(HW.RP.ReadTagV('data_out2', 0, nRecordPoints));
+            % read the data and stop the hardware
+            pause(0.05); % wait for the data to become fully available
+            ch1 = double(HW.RP.ReadTagV('data_out1', 0, nRecordPoints));
+            % think about this:
+            %        da=HW.RP.ReadTagVEX('data_out1', 0, nRecordPoints, 'I32', 'F64', 2);
+            if STIM.Monitor
+                ch2 = double(HW.RP.ReadTagV('data_out2', 0, nRecordPoints));
+            end
         end
         [HW, ~] = rp_setup(HW, STIM, nRecordPoints, 'stop');
-%         fprintf(2, "rpsetup return code: %d", rp_return);
+        %        fprintf(2, "rpsetup return code: %d", rp_return);
     else
-        play(PL); % start it...
-        while(~strcmp(PL.running, 'off'))
-            [HW, stf] = check_stop(HW, 0);
-            if stf == 1
-                PL.stop;
-                HW.IN_ACQ = false;
-                err = 1;
-                set_status('Aborted');
-                return;
-            end
-        end
-        recordblocking(ar, nRecordPoints/STIM.sample_freq)
-        ch1 = getaudiodata(ar);
+        %             if isempty(HW.AO)
+        %                 play(PL); % start it...
+        %                 while(~strcmp(PL.running, 'off'))
+        %                     if HW.STOP_BUTTON_HIT
+        %                         abr4('stop_acq')
+        %                         fprintf(2, "stop with button");
+        %                         return
+        %                     end
+        %                     pause(0.01);
+        %                     %             [HW, stf] = check_stop(HW, 0);
+        %                     %             if stf == 1
+        %                     %                 PL.stop;
+        %                     %                 HW.IN_ACQ = false;
+        %                     %                 err = 1;
+        %                     %                 set_status('Aborted');
+        %                     %                 return;
+        %                     %             end
+        %                 end
+        %                 recordblocking(ar, nRecordPoints/STIM.sample_freq)
+        %                 ch1 = getaudiodata(ar);
+        %             end
     end
-    HW.IN_ACQ = false;
+    set_status('Waiting');
     ch1=ch1*scaleFactor_ch1; % express in microvolts.
     %%%%%%%%%%%%%%%%%%%%%%
     %collecting the raw data
@@ -239,19 +252,6 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     ch1r = reshape(ch1i(1:(interBlockLen*STIM.StimPerSweep)), ...
         [interBlockLen, STIM.StimPerSweep]);
     
-    %{
-    if(debugTiming) % this is very useful for debugging the timing...
-        hf = findobj('Tag', 'debugfig');
-        if isempty(hf)
-            hf = figure;
-            set(hf, 'Tag', 'debugfig');
-        end
-        figure(hf);
-        subplot(2,1,1);
-        hold on;
-        plot(ch1, 'g');
-    end
-    %}
         
     c=clock;
     fname = sprintf('%4d%02d%02d-%02d%02d-raw-%d.txt', c(1), c(2), c(3), c(4), c(5), i);
@@ -263,20 +263,20 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         ch2 = ch2*scaleFactor_ch2; % express in volts.
         ch2i = interp1(timebase_Record, ch2, timebase_Interpolate, 'linear', 'extrap');
         ch2r = reshape(ch2i(1:(interBlockLen*STIM.StimPerSweep)), ...
-            [interBlockLen, STIM.StimPerSweep]);
-        ch2m = mean(ch2r, 2);
-        % fprintf(1, 'CH2 scaled and max: %f\n', max(ch2r));
-        %         if(debugTiming) % this is very useful for debugging the timing...
-        %             hf = findobj('Tag', 'debugfig');
-        %             if isempty(hf)
-        %                 hf = figure;
-        %                 set(hf, 'Tag', 'debugfig');
-        %             end;
-        %             figure(hf);
-        %             subplot(2,1,2);
-        %             hold on;
-        %             plot(ch2, 'r');
-        %         end;
+                [interBlockLen, STIM.StimPerSweep]);
+            ch2m = mean(ch2r, 2);
+            % fprintf(1, 'CH2 scaled and max: %f\n', max(ch2r));
+            %         if(debugTiming) % this is very useful for debugging the timing...
+            %             hf = findobj('Tag', 'debugfig');
+            %             if isempty(hf)
+            %                 hf = figure;
+            %                 set(hf, 'Tag', 'debugfig');
+            %             end;
+            %             figure(hf);
+            %             subplot(2,1,2);
+            %             hold on;
+            %             plot(ch2, 'r');
+            %         end;
     end
     
     %----------------------------------------------------------------------
@@ -409,7 +409,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     % fprintf(1, 'Ch2 max in sweepdata: %f, nonalt: %d\n', max(sweepdata(3,:)), Sweep_nonalt);
     if(STIM.Monitor == 1) % only do this if we have the monitor set on
         hold off
-         fprintf(1, 'plotting max: %f  x %f\n', max(sweepdata(3,:)), max(timebase_Display));
+        fprintf(1, 'plotting max: %f  x %f\n', max(sweepdata(3,:)), max(timebase_Display));
         plot(PLOTS.signal2, timebase_Display, sweepdata(3,:), 'color', 'red');
         if(STIM.Alternate)
             hold on
@@ -424,14 +424,16 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     % delay to next sweep:
     if i < STIM.NSweeps % (but not on last sweep)
         while toc < STIM.InterSweepInterval
-            [HW, stf] = check_stop(HW, 0);
-            if(stf == 1) % while waiting, check for stop.
+            pause(0.01);
+            if HW.STOP_BUTTON_HIT
                 fprintf(2, 'Sweep interval stop\n');
-                return;
+                abr4('stop_acq', 'in delay to next sweep');
+                err = 1;
+                return
             end
         end
     end
-end  % END of the big FOR loop
+end  % END of the Sweeps FOR loop
 
 % divde accumulated averages by the number of sweeps presented.
 
@@ -448,10 +450,11 @@ STIM.ACQPars_np = Total_np;
 STIM.ACQPars_nn = Total_nn;
 STIM.ACQPars_nall = Total_all;
 STIM.ACQPars_tb = timebase_Display;
-set_status('Done');
+set_status('Stopped');  % was 'Done'
 % fid = fopen('Tessaraw.txt','w');
 % fprintf(fid,'%6.2f  %12.8f\n',rawdata);
 % fprintf(2, 'max ch 2: %f\n', md);
 
 end
+
 

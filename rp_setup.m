@@ -14,9 +14,14 @@ if strcmp(HW.HARDWARE, 'None')
 end
 mode = 'abr';
 % see if the desired action is to STOP the RP2.1 from running
-if nargin > 1 && strcmp(varargin{1}, 'stop')
-    [HW, stf] = check_stop(HW, 0);
-    % general STOP routine
+if nargin > 1 && strcmp(varargin{1}, 'Waiting')
+    set_status('Waiting');
+    HW.RP.SoftTrg(0); % invoke(RP, 'softtrg', 0);
+    HW.RP.Halt; % invoke(RP, 'halt');
+    set_attn(HW, 120);
+    HW.AO.stop;
+    %queueOutputData(AO, 0); % make sure output is really back to 0
+    HW.IN_ACQ = false;
     err = 1;
     return;
 end
@@ -74,9 +79,9 @@ end
 if nargin > 1 && strcmp(varargin{1}, 'start')
     if HW.RP.SoftTrg(1) == 0 % start.
         fprintf(2, 'failed to set trigger on RP2.1\n');
-        set(hstat, 'string', 'rp error');
+        set(hstat, 'string', 'RP error');
         [HW, ~] = check_stop(HW, 0);
-        HW.STOP = 0;
+        %        HW.STOP = 0;
         err = 1;
         return;
     end

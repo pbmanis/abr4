@@ -5,6 +5,7 @@ classdef abr4_gui_struct
     properties
        hstat
        hsr  % handle to graphics
+       hstop % handle to top button
         hchk
         hisi  % handle to graphics
         hrep  % handle to graphics
@@ -19,6 +20,7 @@ classdef abr4_gui_struct
         hstep
         hflist
         hcursor
+        hdatafilename
         hstimfilename
         hcurrentfrequency
         hcurrentSPL
@@ -31,6 +33,7 @@ classdef abr4_gui_struct
             %
             obj.hstat = findobj('Tag', 'ABR_Status');
             obj.hsr = findobj('Tag', 'ABR_NSweeps'); % number of sweeps to average across
+            obj.hstop = findobj('Tag', 'ABR_Stopbutton');
             obj.hchk = findobj('Tag', 'ABR_AlternatePolarity');
             obj.hrep = findobj('Tag', 'ABR_StimRep');% rep counter
             obj.hisi = findobj('Tag', 'ABR_InterSweepInterval'); % number of sweeps to average across
@@ -45,6 +48,7 @@ classdef abr4_gui_struct
             obj.hstep = findobj('Tag', 'ABR_AttnStep');
             obj.hflist = findobj('Tag', 'ABR_FreqList');
             obj.hcursor = findobj('Tag', 'ABR_cursor');
+            obj.hdatafilename = findobj('Tag', 'ABR_filename');
             obj.hstimfilename = findobj('Tag', 'ABR_StimFile');
             obj.hcurrentfrequency = findobj('Tag', 'ABR_CurrFreq');
             obj.hcurrentSPL = findobj('Tag', 'ABR_CurrSPL');

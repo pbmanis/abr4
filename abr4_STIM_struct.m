@@ -32,8 +32,8 @@ classdef abr4_STIM_struct
         SPLMin
         SPLMax
         SPLStep
-        spls  % spls in the run
-        freqs  % frequencies in the run
+        spls  % spls in the run as an array
+        freqs  % frequencies in the run, as an array
         FreqList  % string describing the frequency list
         maxtones  
         maxclick

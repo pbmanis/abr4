@@ -11,7 +11,7 @@ classdef abr4_hardware_struct
         AO
         RP
         PA5
-        STOP
+        STOP_BUTTON_HIT
         IN_ACQ
         STIM
     end
@@ -27,8 +27,8 @@ classdef abr4_hardware_struct
             obj.AO = [];
             obj.RP = [];
             obj.PA5 = [];
-            obj.STOP = false;
-            obj.IN_ACQ = false;
+            obj.STOP_BUTTON_HIT = false;  % Set true when stop button is hit, set false when stopped
+            obj.IN_ACQ = false;  % True when acquisition is up an running
             obj.STIM = [];
             
         end
