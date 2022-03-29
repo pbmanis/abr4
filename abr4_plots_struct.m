@@ -6,6 +6,7 @@ classdef abr4_plots_struct
         % data structure
         PLOTHANDLES
         responsemap
+        quiver
         data
         signal1
         signal2
@@ -17,6 +18,7 @@ classdef abr4_plots_struct
             %   
             obj.PLOTHANDLES = [];
             obj.responsemap = [];
+            obj.quiver = [];
             obj.data = [];
             obj.signal1 = [];
             obj.signal2 = [];

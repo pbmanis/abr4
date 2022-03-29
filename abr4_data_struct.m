@@ -9,6 +9,8 @@ classdef abr4_data_struct
         DATAn = [];
         CDATAp = [];
         CDATAn = [];
+        CHDATA = [];
+        C_CHDATA = []
         Timebase = [];
         REFERENCE = [];
     end
@@ -17,11 +19,13 @@ classdef abr4_data_struct
         function obj = initialize(obj)
             % Construct an instance of this class
             %   
-            obj.DATAa = [];
+            obj.DATAa = [];  % all
             obj.DATAp = [];
             obj.DATAn = [];
             obj.CDATAp = [];
             obj.CDATAn = [];
+            obj.CHDATA = [];
+            obj.C_CHDATA = [];  % Raw data
             obj.REFERENCE = [];
             obj.Timebase = [];
         end

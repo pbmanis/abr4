@@ -1,4 +1,4 @@
-function [data, STIM, err] = acquire4(cmd, HW, STIM, PLOTS, GUI, CALIBRATION, varargin)
+function [data, STIM, chdata, err] = acquire4(cmd, HW, STIM, PLOTS, GUI, CALIBRATION, varargin)
 % Data acquisition routine (for all acquisition)
 % Expects TDT RP2.1 for acquistion, PA5 attenuator, and NI6113 DAC card.
 % Includes the ability to perform limited testing using a sound card.
@@ -44,6 +44,7 @@ rawdatacount=1;
 %--------------------------------------------------------------------------
 err = 0;
 data = [];
+chdata = [];
 if nargin > 0 && (strcmp(cmd, 'microphone') ...
         || strcmp(cmd, 'microphone104') ...
         || strcmp(cmd, 'calibrate') ...
@@ -56,7 +57,7 @@ if nargin > 0 && (strcmp(cmd, 'microphone') ...
         correctCal = 1; % allows us to check the calibration.
         cmd = 'calibrate';
     end
-    HW = calibrations(cmd, correctCal, HW, CALIBRATION, STIM);
+    HW = calibrations(cmd, correctCal, HW, CALIBRATION, STIM, GUI);
     return;
 end
 
@@ -101,18 +102,7 @@ tbe = floor(1e-3*0.9*STIM.sample_freq);
 tp0 = floor(1e-3*2.0*STIM.sample_freq);
 tp1 = floor(1e-3*6.0*STIM.sample_freq);
 
-data = zeros(4, interBlockLen);
-Total_np = 0;
-Total_nn = 0;
-Total_all = 0;
 
-% this routine accumulates the sum of the good trials into data
-% we average the data at the end, using nn and np (the number of good + and -
-% trials)
-%data(1,:) main signal on in-1,
-%data(2,:) alternate polarity
-%data(3,:)  in-2 - audio signal
-%data(4,:)  in-2 - audio signal
 
 % although we generated a full stimulus (or used to), we're just going to get the first
 % stimulus waveform, or the first 2 if alternating, and let the dac run out
@@ -155,96 +145,90 @@ if isempty(HW.AO)
     PL = audioplayer(swave, 44100);
 end
 
-set_status('Running');
+data = zeros(4, interBlockLen);  % cumulative data across sweeps, neg, pos, ch1 and ch2.
+Total_np = 0;
+Total_nn = 0;
+Total_all = 0;
+
+% this routine accumulates the sum of the good trials into data
+% we average the data at the end, using nn and np (the number of good + and -
+% trials)
+%data(1,:) main signal on in-1,
+%data(2,:) alternate polarity
+%data(3,:)  in-2 - audio signal
+%data(4,:)  in-2 - audio signal
 plotSweep = cell(3, STIM.NSweeps);
-% STIM.NSweeps = 2;
-for i = 1:STIM.NSweeps % loop over all the sweeps.
+set_status('Running');
+for i_sweep = 1:STIM.NSweeps % loop over all the sweeps.
     % check for the stop button
     state = check_status(GUI);
-    fprintf(2, 'acquire4 State: %s\n', state);
     if strcmp(state, 'Stopped')
-        fprintf(2, "stop with button, sweep level\n");
         abr4('Stop', 'button in sweep loop');
         err = 1;
         return
     end
     sweepdata = zeros(4, interBlockLen);
+    Sweep_np = 0;
+    Sweep_nn = 0;
+    Sweep_nonalt = 0;
+    
     %    fprintf(2,'sweep: %d   stdacrepeat: %d \n', i, stdacrepeat);
     STIM.Monitor = get_SignalPlotFlag(2); % allow plot flag to change when running
     HW.IN_ACQ = true; %#ok<*NASGU>
     sweepreject = 0;
     tic % time mark
-    if ~isempty(HW.AO)
-        HW = set_attn(HW, local_attn);
-        pause(0.01);
-        HW.AO.stop
-        HW.AO.Rate = STIM.NIFreq;
-        queueOutputData(HW.AO, STIM.wave); % wave is FULL
-        HW.AO.TriggersPerRun = 1; % set(AO, 'repeatoutput',  1);
-        set_status('Running');
-        tic
-        startBackground(HW.AO); % get ni board read to go, then trigger the rp
-        pause(0.1);  % give the system time to arm
-        [HW, err] = rp_setup(HW, STIM, nRecordPoints+1000, 'start');
-        if err == 1
-            fprintf(2, 'Hardware failed to start\n');
-            set_status('Stopped');
-            abr4('Stop', 'Error in RP setup');
-            return;
-        end
-        recdur = nRecordPoints/STIM.sample_freq;
-        curindex=HW.RP.GetTagVal('Data_index');
-        % Wait until buffer fills
-        while( toc < recdur) %
-            curindex=HW.RP.GetTagVal('Data_index');
-            pause(0.01);
-            state = check_status(GUI);
-            if strcmp(state, 'Stopped')
-                fprintf(2, "stop with button\n");
-                abr4('stop_acq', 'button in toc loop');
-                err = 1;
-                return
-            end
-            % read the data and stop the hardware
-            pause(0.05); % wait for the data to become fully available
-            ch1 = double(HW.RP.ReadTagV('data_out1', 0, nRecordPoints));
-            % think about this:
-            %        da=HW.RP.ReadTagVEX('data_out1', 0, nRecordPoints, 'I32', 'F64', 2);
-            if STIM.Monitor
-                ch2 = double(HW.RP.ReadTagV('data_out2', 0, nRecordPoints));
-            end
-        end
-        [HW, ~] = rp_setup(HW, STIM, nRecordPoints, 'stop');
-        %        fprintf(2, "rpsetup return code: %d", rp_return);
-    else
-        %             if isempty(HW.AO)
-        %                 play(PL); % start it...
-        %                 while(~strcmp(PL.running, 'off'))
-        %                     if HW.STOP_BUTTON_HIT
-        %                         abr4('stop_acq')
-        %                         fprintf(2, "stop with button");
-        %                         return
-        %                     end
-        %                     pause(0.01);
-        %                     %             [HW, stf] = check_stop(HW, 0);
-        %                     %             if stf == 1
-        %                     %                 PL.stop;
-        %                     %                 HW.IN_ACQ = false;
-        %                     %                 err = 1;
-        %                     %                 set_status('Aborted');
-        %                     %                 return;
-        %                     %             end
-        %                 end
-        %                 recordblocking(ar, nRecordPoints/STIM.sample_freq)
-        %                 ch1 = getaudiodata(ar);
-        %             end
+    HW = set_attn(HW, local_attn);
+    pause(0.01);
+    HW.AO.stop
+    HW.AO.Rate = STIM.NIFreq;
+    queueOutputData(HW.AO, STIM.wave); % wave is FULL
+    HW.AO.TriggersPerRun = 1; % set(AO, 'repeatoutput',  1);
+    set_status('Running');
+    tic
+    startBackground(HW.AO); % get ni board read to go, then trigger the rp
+    pause(0.1);  % give the system time to arm
+    [HW, err] = rp_setup(HW, STIM, nRecordPoints+1000, 'Start');
+    if err == 1
+        fprintf(2, 'Hardware failed to start\n');
+        set_status('Stopped');
+        abr4('Stop', 'Error in RP setup');
+        return;
     end
+    recdur = nRecordPoints/STIM.sample_freq;
+    curindex=HW.RP.GetTagVal('Data_index');
+    % Wait until buffer fills
+    while( toc < recdur) %
+        curindex=HW.RP.GetTagVal('Data_index');
+        pause(0.01);
+        state = check_status(GUI);
+        if strcmp(state, 'Stopped')
+            abr4('Stop', 'button in toc loop');
+            err = 1;
+            return
+        end
+        % read the data and stop the hardware
+        pause(1.5); % wait for the data to become fully available
+        ch1 = double(HW.RP.ReadTagV('data_out1', 0, nRecordPoints));
+        % think about this:
+        %        da=HW.RP.ReadTagVEX('data_out1', 0, nRecordPoints, 'I32', 'F64', 2);
+        if STIM.Monitor
+            ch2 = double(HW.RP.ReadTagV('data_out2', 0, nRecordPoints));
+        end
+        state = check_status(GUI);
+        if strcmp(state, 'Stopped')
+            abr4('Stop', 'button in toc loop');
+            err = 1;
+            return
+        end
+    end
+    [HW, ~] = rp_setup(HW, STIM, nRecordPoints, 'Stop');
+
     set_status('Waiting');
     ch1=ch1*scaleFactor_ch1; % express in microvolts.
     %%%%%%%%%%%%%%%%%%%%%%
     %collecting the raw data
-    rawdata(rawdatacount,:)=ch1;
-    rawdatacount=rawdatacount+1;
+%     rawdata(rawdatacount,:)=ch1;
+%     rawdatacount=rawdatacount+1;
     %%%%%%%%%%%%%%%%%%%%%%
     
     % now split according to the number of stimulus pulses in the waveform
@@ -252,92 +236,87 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     ch1r = reshape(ch1i(1:(interBlockLen*STIM.StimPerSweep)), ...
         [interBlockLen, STIM.StimPerSweep]);
     
-        
     c=clock;
-    fname = sprintf('%4d%02d%02d-%02d%02d-raw-%d.txt', c(1), c(2), c(3), c(4), c(5), i);
+    fname = sprintf('%4d%02d%02d-%02d%02d-raw-%d.txt', c(1), c(2), c(3), c(4), c(5), i_sweep);
     % save(fname, 'ch1r', '-ascii', '-tabs');
     %   fprintf(2, 'max cha: %f nV\n', max(abs(ch1*1e9)));
     
     if(STIM.Monitor == 1)
-        fprintf(1, 'CH2 max in loop: %f, scalefactor: %f\n', max(ch2), scaleFactor_ch2);
         ch2 = ch2*scaleFactor_ch2; % express in volts.
         ch2i = interp1(timebase_Record, ch2, timebase_Interpolate, 'linear', 'extrap');
         ch2r = reshape(ch2i(1:(interBlockLen*STIM.StimPerSweep)), ...
                 [interBlockLen, STIM.StimPerSweep]);
             ch2m = mean(ch2r, 2);
-            % fprintf(1, 'CH2 scaled and max: %f\n', max(ch2r));
-            %         if(debugTiming) % this is very useful for debugging the timing...
-            %             hf = findobj('Tag', 'debugfig');
-            %             if isempty(hf)
-            %                 hf = figure;
-            %                 set(hf, 'Tag', 'debugfig');
-            %             end;
-            %             figure(hf);
-            %             subplot(2,1,2);
-            %             hold on;
-            %             plot(ch2, 'r');
-            %         end;
+    else
+        ch2 = [];
     end
-    
     %----------------------------------------------------------------------
-    % Artifact rejection code:
+    % Artifact rejection
+    % Reject traces on two potential causes:
+    % 1. The baseline is noisy.
+    % 2. the absolute value of the signal is greater than
+    %    STIM.avg_reject, in microvolts.
+    % The array iy holds the indices into the samples in the sweep
+    % that meet these criteria.
     %----------------------------------------------------------------------
-    iy = [];
-    li = 1:STIM.StimPerSweep;
-    
+    rejected_indices = [];
+    reject_on_amplitude = [];
+    reject_on_std = [];
+    response_indices = 1:STIM.StimPerSweep;
     if STIM.avg_reject > 0
-        [~, iy] = find(abs(ch1r) > STIM.avg_reject*10^-6);
+        [~, reject_on_amplitude] = find(abs(ch1r) > STIM.avg_reject*10^-6);
         allstds=std(ch1r(tbs:tbe,:));
-        w=mean(allstds);
-        iy2 = find(allstds > w*STIM.rms_reject)';
-        iy = [iy; iy2]; % concatenate...
-        iy = unique(iy);
+        w = mean(allstds);
+        reject_on_std = find(allstds > w*STIM.rms_reject)';
+        rejected_indices = [reject_on_amplitude; reject_on_std]; % concatenate...
+        rejected_indices = unique(rejected_indices);  % only count each once
     end
-    lin = setxor(li, iy); % exclude those that were rejected.
-    NREJECT = NREJECT + length(iy);
-    sweepreject = length(iy);
+
+    response_indices = setxor(response_indices, rejected_indices); % exclude those that were rejected.
+    sweeps_rejected = length(rejected_indices);
+    NREJECT = NREJECT + sweeps_rejected;
     hrej = findobj('tag', 'ABR_Nreject');
     if(~isempty(hrej))
-        set(hrej, 'string', sprintf('%d [%d]', NREJECT, sweepreject));
+        set(hrej, 'string', sprintf('N=%d [SW: %d]', NREJECT, sweeps_rejected));
     end
-    Sweep_np = 0;
-    Sweep_nn = 0;
-    Sweep_nonalt = 0;
-    for ii = 1:length(lin) % break out the data from the acquisition to individual arrays
+
+    for ii = 1:length(response_indices) % break out the data from the acquisition to individual arrays
+        if find(rejected_indices == response_indices(ii))  % If response was rejected, leave it out
+            continue
+        end
         if(STIM.Alternate)
             switch(mod(ii,2)) % put alternate data into different data sets.
                 case 1
-                    % fprintf(1, 'Alternate into data 1 %d\n', ii);
-                    sweepdata(1,:) = sweepdata(1,:) + ch1r(:, ii)'; % sum alternate polarites into different channels
-                    if(STIM.Monitor)
-                        sweepdata(3,:) = sweepdata(3,:) + ch2r(:, ii)';
-                    end % input channel 2 is microphone monitor of STIM...
+                    sweepdata(1,:) = sweepdata(1,:) + ch1r(:, response_indices(ii))'; % sum alternate polarites into different channels
+                    data(1,:)  = data(1,:) + ch1r(:, response_indices(ii))';
                     Sweep_np = Sweep_np + 1;
-                case 0
-                    sweepdata(2,:) = sweepdata(2,:) + ch1r(:, ii)'; % the alternation group
-                    % fprintf(1, 'Alternate into data 2 %d\n', ii);
+                    Total_np = Total_np + 1;
                     if(STIM.Monitor)
-                        sweepdata(4,:) = sweepdata(4,:) + ch2r(:, ii)';
+                        sweepdata(3,:) = sweepdata(3,:) + ch2r(:, response_indices(ii))';
+                        data(3,:) = data(3,:) + ch2r(:, response_indices(ii))';
                     end % input channel 2 is microphone monitor of STIM...
+                case 0
+                    sweepdata(2,:) = sweepdata(2,:) + ch1r(:, response_indices(ii))'; % the alternation group
+                    data(2,:)  = data(2,:) + ch1r(:, response_indices(ii))';
                     Sweep_nn = Sweep_nn + 1;
+                    Total_nn = Total_nn + 1;
+                    if(STIM.Monitor)
+                        sweepdata(4,:) = sweepdata(4,:) + ch2r(:, response_indices(ii))';
+                    end % input channel 2 is microphone monitor of STIM...
                 otherwise
             end
         else % not in alternation mode
-            sweepdata(1,:) = sweepdata(1,:) +  ch1r(:, ii)';
+            sweepdata(1,:) = sweepdata(1,:) +  ch1r(:, response_indices(ii))';
+            data(1,:) = data(1,:) + ch1r(:, response_indices(ii))';
             if(STIM.Monitor)
-                sweepdata(3,:) = sweepdata(3,:) + ch2r(:, ii)';
+                sweepdata(3,:) = sweepdata(3,:) + ch2r(:, response_indices(ii))';
             end
             Sweep_nonalt = Sweep_nonalt + 1;
+            Total_all = Total_all + 1;
         end
     end
-    %fprintf(1, 'Ch2 (a) max in sweepdata: %f, nonalt: %d, last samp: %f\n', ...
-    %    max(sweepdata(3,:)), Sweep_nonalt, max(ch2r(:, ii))');
-    
-    Total_np = Total_np + Sweep_np;
-    Total_nn = Total_nn + Sweep_nn;
-    Total_all = Total_all + Sweep_nonalt;
-    %fprintf(1, 'i=%d, total_all = %d\n', i, Total_all);
-    set(GUI.hrep, 'string', sprintf('%d', i*STIM.StimPerSweep)); % update acquisition trial counter
+
+    set(GUI.hrep, 'string', sprintf('%d', i_sweep*STIM.StimPerSweep)); % update acquisition trial counter
     if(mod(replot, 10) == 0)
         replot = 0;
     else
@@ -346,11 +325,7 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     % average the data from accepted sweeps, then sum in to the data arrays
     if(STIM.Alternate)
         sweepdata(1,:) = sweepdata(1,:)/Sweep_np;
-        sweepdata(1,:) = sweepdata(1,:) - mean(sweepdata(1,tbs:tbe));
-        data(1,:) = data(1,:) + sweepdata(1,:);
         sweepdata(2,:) = sweepdata(2,:)/Sweep_nn;
-        sweepdata(2,:) = sweepdata(2,:) - mean(sweepdata(2,tbs:tbe));
-        data(2,:) = data(2,:) + sweepdata(2,:);
         if STIM.Monitor
             sweepdata(3,:) = sweepdata(3,:)/Sweep_np;
             sweepdata(4,:) = sweepdata(4,:)/Sweep_nn;
@@ -359,57 +334,49 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         end
         set(PLOTS.data, 'clipping','On');
         hold on; % set(PLOT.PLOTS.data, 'hold', 'On');
-        runningAvg = (data(1,:)/i+data(2,:)/i)/2.0;
-        plotSweep{1,i} = plot(PLOTS.data, timebase_Display, (sweepdata(1,:)+sweepdata(2,:))/2.0, 'b-');
-        plotSweep{1,i}.Color=[0.6, 0.3, 0.3, 0.5];
+        runningAvg = ((data(1,:)/Total_np)+(data(2,:)/Total_nn))/2.0;
+        runningAvg = runningAvg - mean(runningAvg(tbs:tbe));
+        sweepAvg =(sweepdata(1,:)+sweepdata(2,:))/2.0;
+        sweepAvg = sweepAvg - mean(sweepAvg(tbs:tbe));
+
+        plotSweep{1,i_sweep} = plot(PLOTS.data, timebase_Display, sweepAvg);
+        plotSweep{1,i_sweep}.Color=[0.6, 0.3, 0.3, 0.5];
         
-        if i == 1
+        if i_sweep == 1
             avgplot = plot(PLOTS.data, timebase_Display, runningAvg, 'k-', 'LineWidth', 2.0);
         else
             set(avgplot,'Xdata',timebase_Display,'YData',runningAvg);
         end
-        % plot(PLOTS.data, timebase_Display, sweepdata(1,:), 'g-');
-        % plot(PLOTS.data, timebase_Display, sweepdata(2,:), 'r-');
         md = max(abs(sweepdata(1,:)));
         
     else
         sweepdata(1,:) = sweepdata(1,:)/Sweep_nonalt;
         sweepdata(1,:) = sweepdata(1,:) - mean(sweepdata(1,tbs:tbe));
-        data(1,:) = data(1,:) + sweepdata(1,:);
-        runningAvg = data(1,:)/i;
+        runningAvg = data(1,:)/Total_all;
+        runningAvg = runningAvg - mean(runningAvg(1, tbs:tbe));
         if STIM.Monitor
             sweepdata(3,:) = sweepdata(3,:)/Sweep_nonalt;
             data(3,:) = data(3,:) + sweepdata(3,:);
         end
         
-        plotSweep{1, i} = plot(PLOTS.data, timebase_Display, sweepdata(1,:), 'b-');
-        if i == 1
+        plotSweep{1, i_sweep} = plot(PLOTS.data, timebase_Display, sweepdata(1,:), 'b-');
+        if i_sweep == 1
             avgplot = plot(PLOTS.data, timebase_Display, runningAvg, 'k-', 'LineWidth', 2.0);
         else
             set(avgplot,'Xdata',timebase_Display,'YData',runningAvg);
         end
-        plotSweep{1,i}.Color=[0.6, 0.6, 0.6, 0.5];
-        %         uistack(plotSweep{1,i}, 'top');
+        plotSweep{1,i_sweep}.Color=[0.6, 0.6, 0.6, 0.5];
         md = max(abs(sweepdata(1,:)));
     end
-    % trace_scale(md, PLOTS.data);
-    % set(PLOTS.data, 'YLim', [-5e-6, 5e-6]);
+  
     set_scale(PLOTS)
-    %     ds = findobj('Tag', 'ABR_DisplayScale');
-    %     dsstr = get(ds, 'String');
-    %     dsval = get(ds, 'Value');
-    %     if strcmp(dsstr{dsval}, 'auto') == 0
-    %         dsscale = str2double(dsstr{dsval});
-    %         set(PLOTS.data, 'YLim', [-dsscale dsscale]);
-    %     end;
+
     set(PLOTS.data, 'xlim', [0 STIM.avg_dur]);
     set(PLOTS.data, 'clipping', 'on');
     drawnow;
     
-    % fprintf(1, 'Ch2 max in sweepdata: %f, nonalt: %d\n', max(sweepdata(3,:)), Sweep_nonalt);
     if(STIM.Monitor == 1) % only do this if we have the monitor set on
         hold off
-        fprintf(1, 'plotting max: %f  x %f\n', max(sweepdata(3,:)), max(timebase_Display));
         plot(PLOTS.signal2, timebase_Display, sweepdata(3,:), 'color', 'red');
         if(STIM.Alternate)
             hold on
@@ -418,16 +385,16 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
         md = max(abs(sweepdata(3,:)));
         set(PLOTS.signal2, 'xLimMode', 'Auto');
         set(PLOTS.signal2, 'yLimMode', 'Auto');
-        %trace_scale(md, PLOTS.signal2);
     end
     
     % delay to next sweep:
-    if i < STIM.NSweeps % (but not on last sweep)
+    if i_sweep < STIM.NSweeps % (but not on last sweep)
+%        fprintf(2, 'i: %d n: %d\n', i_sweep, STIM.NSweeps);
         while toc < STIM.InterSweepInterval
             pause(0.01);
-            if HW.STOP_BUTTON_HIT
-                fprintf(2, 'Sweep interval stop\n');
-                abr4('stop_acq', 'in delay to next sweep');
+            state = check_status(GUI);
+            if state == "Stopped"
+                abr4('Stop', 'in delay to next sweep');
                 err = 1;
                 return
             end
@@ -435,17 +402,27 @@ for i = 1:STIM.NSweeps % loop over all the sweeps.
     end
 end  % END of the Sweeps FOR loop
 
-% divde accumulated averages by the number of sweeps presented.
+% divde accumulated averages by the number of sweeps accepted.
+% subtract the baseline
 
-data(1,:) = data(1,:)/STIM.NSweeps;
-data(2,:) = data(2,:)/STIM.NSweeps;
+if STIM.Alternate
+    data(1,:) = data(1,:)/Total_np;
+    data(1,:) = data(1,:) - mean(data(1, tbs:tbe));
+    data(2,:) = data(2,:)/Total_nn;
+    data(2,:) = data(2,:) - mean(data(2, tbs:tbe));
+else
+    data(1,:) = data(1,:)/Total_all;
+    data(1,:) = data(1,:) - mean(data(1, tbs:tbe));
+    data(2,:) = data(2,:)/Total_all; 
+    data(2,:) = data(2,:) - mean(data(2, tbs:tbe));
+end
+
 if STIM.Monitor
     data(3,:) = data(3,:)/STIM.NSweeps;
     data(4,:) = data(4,:)/STIM.NSweeps;
 end
+chdata = [ch1, ch2];
 
-% figure(10);
-% plot(data(1,:));
 STIM.ACQPars_np = Total_np;
 STIM.ACQPars_nn = Total_nn;
 STIM.ACQPars_nall = Total_all;

@@ -108,8 +108,8 @@ function [D] = abr4(varargin)
         %     datac_setcrosshair(PLOT.responsemap, 'ABR_map', 'F (kHz)', 'SPL(dB)', msg_pos);
         HW = set_attn(HW, -1);
         dac_zero;
-        STOP = 0;
-        last_data = 'clickabr';
+%         STOP = 0;
+%         last_data = 'clickabr';
         GUI = GUI.initialize();
         STIM = getStimParams(STIM, GUI); % now we can populate the STIM from the GUI
         set(GUI.hstop, 'UserData', 'Waiting');
@@ -161,19 +161,23 @@ function [D] = abr4(varargin)
             
         case 'Stop'
             state = get(GUI.hstop, 'UserData');
-            fprintf('abr4: STOP state: %s\n', state)
+            if nargin >= 2
+                fprintf('abr4: STOP state: %s, message: %s\n', state, varargin{2})
+            else
+                fprintf('abr4: STOP state: %s, no message\n', state)
+            end
             if strcmp(state, 'Waiting')
                 set_status('Waiting');
                 return
             elseif strcmp(state, 'Stopped')
-                HW = stop_acq(HW, 'Stop');
-                set_status('Waiting');
+%                 HW = stop_acq(HW, 'Stop');
+%                 set_status('Stopped');
                 return
             elseif strcmp(state, 'Running')
                 HW = stop_acq(HW, 'Stop');
                 set_status('Stopped');
             elseif strcmp(state, 'Paused')
-                HW = stop_acq(HW, 'Paused');
+                HW = stop_acq(HW, 'Stop');
                 set_status('Paused');
             end
             
@@ -298,11 +302,11 @@ function [D] = abr4(varargin)
             clear_plots(PLOTS, STIM, DATA);
             REFERENCE = [];
             cla(PLOTS.responsemap);
-            set(PLOTS.responsemap, 'XScale', 'linear');
-            set(PLOTS.responsemap, 'YLimMode', 'manual');
-            set(PLOTS.responsemap, 'XLimMode', 'manual');
-            set(PLOTS.responsemap, 'XLim', [min(STIM.spls), max(STIM.spls)]);
-            set(PLOTS.responsemap, 'YLim', [0, 1]);
+%             set(PLOTS.responsemap, 'XScale', 'linear');
+%             set(PLOTS.responsemap, 'YLimMode', 'manual');
+%             set(PLOTS.responsemap, 'XLimMode', 'manual');
+%            set(PLOTS.responsemap, 'XLim', [min(STIM.spls), max(STIM.spls)]);
+%            set(PLOTS.responsemap, 'YLim', [0, 1]);
 
             c = clock;
             basefilename = sprintf('%4d%02d%02d-%02d%02d', c(1), c(2), c(3), c(4), c(5));
@@ -315,7 +319,8 @@ function [D] = abr4(varargin)
             set(GUI.hcurrentfrequency, 'String', 'Click');
 
             if strcmp(cmd, 'click_test')
-                spllist = [75, 75, 75, 75, 75, 75, 75, 75, 75, 75];
+%                 spllist = [75, 75, 75, 75, 75, 75, 75, 75, 75, 75];
+                spllist = [90, 90, 90, 90, 90, 90, 90, 90, 90, 90];
                 nspl = length(spllist);
                 mode = 'test';
 
@@ -339,8 +344,9 @@ function [D] = abr4(varargin)
             maxr = NaN * zeros(nspl, 1);
 
             for i = 1:nspl
-                set(GUI.hcurrentSPL, 'String', sprintf('%d %.1f dB', i, spllist(end - (i - 1))));
+                set(GUI.hcurrentSPL, 'String', sprintf('%.1f dB', spllist(end - (i - 1))));
                 state = get(GUI.hstop, 'UserData');
+                abr4(state, 'click gui stop');
                 if strcmp(state, 'Stop')
                     HW = stop_acq(HW, state);
                     set_status('Stopped');
@@ -353,6 +359,7 @@ function [D] = abr4(varargin)
                 if i == 1
                     DATA.CDATAp = zeros(nspl, length(DATA.DATAp)); % positive and negative data arrays for click data
                     DATA.CDATAn = zeros(nspl, length(DATA.DATAn));
+                    DATA.C_CHDATA = zeros(nspl, length(DATA.CHDATA));
                 end
 
                 if (err > 0)
@@ -361,6 +368,7 @@ function [D] = abr4(varargin)
 
                 DATA.CDATAp(i, :) = DATA.DATAp; % append the averaged positive data
                 DATA.CDATAn(i, :) = DATA.DATAn; % and the averaged negative data
+                DATA.C_CHDATA(i, :) = DATA.CHDATA; % raw traces 
                 maxr(i) = max(abs(DATA.CDATAp(i, :)' + DATA.CDATAn(i, :)')); % measure the signal
                 attns(i) = spllist(end - (i - 1));
 
@@ -379,13 +387,20 @@ function [D] = abr4(varargin)
                         'markerfacecolor', 'red');
 
                 end
-
-            end
+                state = get(GUI.hstop, 'UserData');
+                if strcmp(state, 'Stop')
+                    HW = stop_acq(HW, state);
+                    set_status('Stopped');
+                    err = 1;
+                    return;
+                end
+            end  % of the SPL loop for clicks
 
             HW = stop_acq(HW, state);
             % set(GUI.hstat, 'String', 'Done');
             DATA.CDATAp = DATA.CDATAp';
             DATA.CDATAn = DATA.CDATAn';
+          %  DATA.C_CHDATA = DATA.C_CHDATA';
             spl = STIM.spls';
 
             if strcmp(cmd, 'click')
@@ -422,8 +437,8 @@ function [D] = abr4(varargin)
             hstat = findobj('tag', 'ABR_Status');
 
             if strcmp(cmd, 'tone_test')
-                spllist = [75, 75, 75, 75, 75, 75, 75, 75, 75, 75];
-                fr = [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000];
+                spllist = [90, 90, 90, 90, 90, 90, 90, 90, 90, 90];
+                fr = [8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000];
                 mode = 'test';
             elseif strcmp(cmd, 'tone_info')
                 nspl = length(STIM.spls);
@@ -450,19 +465,19 @@ function [D] = abr4(varargin)
                 set(hr, 'YLimMode', 'auto');
                 set(hr, 'XLimMode', 'manual');
                 %            set(hr, 'XLim', [min(0.8*fr), max(1.2*fr)]);
-                set(hr, 'YLim', [min(STIM.spls) - 5, max(STIM.spls)] + 5);
+%                set(hr, 'YLim', [min(STIM.spls) - 5, max(STIM.spls)] + 5);
                 set(PLOTS.responsemap, 'XLim', [0.2, 64.]);
                 set(PLOTS.responsemap, 'XScale', 'log');
                 xt = [0.5, 1, 2, 4, 8, 16, 32, 64];
                 set(PLOTS.responsemap, 'XTick', xt);
                 set(PLOTS.responsemap, 'XTickLabel', xt);
 
-                PLOTS.responsemap = quiver(hr, fr / 1000.0, STIM.spls, 0 * maxr, maxr, 1e-3);
-                set(PLOTS.responsemap, 'marker', 'o', 'markersize', 0.8, 'markerfacecolor', 'k', 'markeredgecolor', 'k');
-                set(PLOTS.responsemap, 'AutoScale', 'off');
-                set(PLOTS.responsemap, 'UDataSource', 'maxrx');
-                set(PLOTS.responsemap, 'VDataSource', 'maxry');
-                refreshdata(PLOTS.responsemap, 'caller');
+                PLOTS.quiver = quiver(hr, fr / 1000.0, STIM.spls, 0 * maxr, maxr, 1e-3);
+                set(PLOTS.quiver, 'marker', 'o', 'markersize', 0.8, 'markerfacecolor', 'k', 'markeredgecolor', 'k');
+                set(PLOTS.quiver, 'AutoScale', 'off');
+                set(PLOTS.quiver, 'UDataSource', 'maxrx');
+                set(PLOTS.quiver, 'VDataSource', 'maxry');
+               % refreshdata(PLOTS.responsemap, 'caller');
             end
 
             err = 0;
@@ -478,9 +493,10 @@ function [D] = abr4(varargin)
             for j = 1:length(fr) % go over the response map, frequency x atten
                 DATA.CDATAp = [];
                 DATA.CDATAn = [];
+                DATA.C_CHDATA = [];
                 fnamep = sprintf('%s/%s-p-%8.3f.txt', DataDirectory, basefilename, fr(j));
                 fnamen = sprintf('%s/%s-n-%8.3f.txt', DataDirectory, basefilename, fr(j));
-                fname_bigdata = sprintf('%s/%s-n-%8.3f.mat', DataDirectory, basefilename, fr(j));
+                fname_bigdata = sprintf('%s/%s-%.1f.mat', DataDirectory, basefilename, fr(j));
                 set(GUI.hdatafilename, 'String', fname_bigdata);
                 set(GUI.hcurrentfrequency, 'String', sprintf('%6.1f kHz', fr(j)));
 
@@ -489,14 +505,14 @@ function [D] = abr4(varargin)
                 else
                     set(GUI.hstimfilename, 'String', 'Tone Test (no file)');
                 end
-
+                
                 for i = 1:length(spllist)
-                    [DATA, HW, err] = tone_map(cmd, fr(j), spllist(i), HW, CALIBRATION, STIM, DATA, PLOTS, GUI); % main tone abr routine
+                    set(GUI.hcurrentSPL, 'String', sprintf('%3.1f dB', spllist(i)));
+                    [DATA, STIM, HW, err] = tone_map(cmd, fr(j), spllist(i), HW, CALIBRATION, STIM, DATA, PLOTS, GUI); % main tone abr routine
                     if (err ~= 0)
                         err = 1;
                         return;
                     end
-                    set(GUI.hcurrentSPL, 'String', sprintf('%3.1f dB', spllist(i)));
                     if ~strcmp(cmd, 'tone_test')
                         maxr(i, j) = max(abs(DATA.DATAa(1, :)')); % measure the signal
                         tmax = max(max(maxr));
@@ -508,6 +524,7 @@ function [D] = abr4(varargin)
 
                     DATA.CDATAp = [DATA.CDATAp; DATA.DATAp]; % append the positive data
                     DATA.CDATAn = [DATA.CDATAn; DATA.DATAn]; % and the negative data
+                    DATA.C_CHDATA = [DATA.C_CHDATA; DATA.CHDATA];
                     %   fprintf(1, 'fr = %6.1f, j = %d, spl = %6.1f  i = %d\n', fr(j), j, spls(i), i);
                     %               pause(0.1); % brief delay between frequencies.
                 end
@@ -516,6 +533,7 @@ function [D] = abr4(varargin)
                 GrandDatan{j} = DATA.CDATAn;
                 DATA.CDATAp = DATA.CDATAp';
                 DATA.CDATAn = DATA.CDATAn';
+            %    DATA.C_CHDATA = DATA.C_CHDATA';
 
                 if (~strcmp(cmd, 'tone_test'))
                     data_struct_p = DATA.CDATAp; % can't save a part of a structure?
@@ -611,7 +629,7 @@ function [DATA, STIM, err] = one_click(spl, mode, HW, STIM, CALIBRATION, DATA, P
         drawnow;
     end
 
-    [data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, CALIBRATION, attn);
+    [data, STIM, chdata, err] = acquire4('attn', HW, STIM, PLOTS, GUI, CALIBRATION, attn);
     HW = set_attn(HW, -1);
 
     if (err == 0)
@@ -619,6 +637,8 @@ function [DATA, STIM, err] = one_click(spl, mode, HW, STIM, CALIBRATION, DATA, P
         DATA.DATAp = data(1, :);
         DATA.DATAn = data(2, :);
         DATA.DATAa = davg;
+        DATA.CHDATA = chdata;
+        pause(2.0);
     else
         fprintf(2, 'acquire4 err: %d\n', err);
         return
@@ -641,7 +661,7 @@ end
 %****************************************************************************
 %----------------------------------------------------------------------------
 
-function [DATA, HW, err] = tone_map(mode, freq, spl, HW, CALIBRATION, STIM, DATA, PLOTS, GUI)
+function [DATA, STIM, HW, err] = tone_map(mode, freq, spl, HW, CALIBRATION, STIM, DATA, PLOTS, GUI)
 
     err = 0;
     STIM.rate = 1 / STIM.sample_freq; % rate is in sec per point.
@@ -730,7 +750,7 @@ function [DATA, HW, err] = tone_map(mode, freq, spl, HW, CALIBRATION, STIM, DATA
 
         drawnow;
     end
-    [data, STIM, err] = acquire4('attn', HW, STIM, PLOTS, GUI, CALIBRATION, attn);
+    [data, STIM, chdata, err] = acquire4('attn', HW, STIM, PLOTS, GUI, CALIBRATION, attn);
     HW = set_attn(HW, -1);
 
     if (err ~= 0)
@@ -742,6 +762,7 @@ function [DATA, HW, err] = tone_map(mode, freq, spl, HW, CALIBRATION, STIM, DATA
         DATA.DATAp = data(1, :);
         DATA.DATAn = data(2, :);
         DATA.DATAa = davg;
+        DATA.CHDATA = chdata;
     end
 
     if (strcmp(mode, 'tone_test'))

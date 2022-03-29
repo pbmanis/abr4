@@ -1,4 +1,4 @@
-function [HW, STIM] = calibrations(cmd, check_calibration, HW, CALIBRATION, STIM)
+function [HW, STIM] = calibrations(cmd, check_calibration, HW, CALIBRATION, STIM, GUI)
 % This function handles the sound system calibrations.
 % There are two parts, depending on the argument passed in 'cmd':
 % 1.  'calibrate' records a range of frequencies at a fixed intensity
@@ -10,8 +10,6 @@ function [HW, STIM] = calibrations(cmd, check_calibration, HW, CALIBRATION, STIM
 
 % This code is part of ABR4. It references GUI objects.
 % 2010-2022 Paul B. Manis and lab...
-
-HW.STOP = false;
 
 if strcmp(cmd, 'calibrate')
     [Speaker, Mic] = getSpeakerMic(); % read from the gui
@@ -219,11 +217,11 @@ switch calmode
         %         return;
         trec = (0:1/STIM.sample_freq:(nRecordPoints-1)/STIM.sample_freq);
         for i = 1:length(spkr_freq)
-            [HW, stopindicator] = check_stop(HW, 0);
-            if stopindicator == 1
-                fprintf(2, "Abort hit, terminating speaker calibration without saving data\n");
-                return;
-            end
+%             state = check_status(GUI);
+%             if state == 'Stopped'
+%                 fprintf(2, "Abort hit, terminating speaker calibration without saving data\n");
+%                 return;
+%             end
             [STIM.wave, STIM.clock] = ...
                 tonepip(CALIBRATION.SPLCAL.ToneVoltage, spkr_freq(i), ...
                 0.0, recordDuration*1000., rise_fall, 0, STIM.NIFreq, 10, 1, 0); % convert rate to usec per point

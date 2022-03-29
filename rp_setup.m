@@ -14,8 +14,8 @@ if strcmp(HW.HARDWARE, 'None')
 end
 mode = 'abr';
 % see if the desired action is to STOP the RP2.1 from running
-if nargin > 1 && strcmp(varargin{1}, 'Waiting')
-    set_status('Waiting');
+if nargin > 1 && strcmp(varargin{1}, 'Stop')
+    set_status('Stopped');
     HW.RP.SoftTrg(0); % invoke(RP, 'softtrg', 0);
     HW.RP.Halt; % invoke(RP, 'halt');
     set_attn(HW, 120);
@@ -76,7 +76,7 @@ if HW.RP.SetTagVal('REC_Size', nRecordPoints) == 0
     return;
 end
 
-if nargin > 1 && strcmp(varargin{1}, 'start')
+if nargin > 1 && strcmp(varargin{1}, 'Start')
     if HW.RP.SoftTrg(1) == 0 % start.
         fprintf(2, 'failed to set trigger on RP2.1\n');
         set(hstat, 'string', 'RP error');
