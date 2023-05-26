@@ -7,7 +7,7 @@ function [rmap, freqs, levels] = ABRA_1(arg)
 if(nargin == 0)
     return;
 end
-sr=1/100000; % 4/97635;
+sr=2/100000; % 4/97635;
 maxt = 8;
 persistent abr_path
 persistent filename

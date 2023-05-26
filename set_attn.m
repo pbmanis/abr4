@@ -8,13 +8,13 @@ end
 
 usbchan = 1;
 if(isempty(HW.PA5) || ~ishandle(HW.PA5))
-    fprintf(2, 'Attempting to connect to PA5 Attenuators: ');
+    fprintf(1, 'Attempting to connect to PA5 Attenuators: ');
     HW.PA5=actxcontrol('PA5.x', [5 5 26 26]);
     if(HW.PA5.ConnectPA5('USB', usbchan) == 0)
-        fprintf(2, ' ... failed to connect to PA5 %d\n', usbchan);
+        fprintf(2, ' ... Failed to connect to PA5 %d\n', usbchan);
         return;
     end
-    fprintf(2, 'PA5 Connection OK\n');
+    fprintf(1, 'PA5 Connection OK\n');
 end
 HW.PA5.SetAtten(attn);
 hattn = findobj('Tag', 'ABR_CurrAttn');

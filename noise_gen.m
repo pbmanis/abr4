@@ -54,10 +54,10 @@ switch(varargin{1})
             ftype = varargin{3};
             if(nargin > 3)
                 order = varargin{4};
-            end;
+            end
             if(nargin > 4)
                 nstage = varargin{5};
-            end;
+            end
         end
     case {'highpass', 'HP', 'hp'}
         passtype = 'high';
@@ -69,7 +69,7 @@ switch(varargin{1})
             end
             if(nargin > 4)
                 nstage = varargin{5};
-            end;
+            end
 
         end
     case {'bandpass', 'BP', 'bp'}
@@ -79,10 +79,10 @@ switch(varargin{1})
             ftype = varargin{4};
             if(nargin > 4)
                 order = varargin{5};
-            end;
+            end
             if(nargin > 5)
                 nstage = varargin{6};
-            end;
+            end
         end
     case {'notch', 'stop'}
         passtype = 'stop';
@@ -91,10 +91,10 @@ switch(varargin{1})
             ftype = varargin{4};
             if(nargin > 4)
                 order = varargin{5};
-            end;
+            end
             if(nargin > 5)
                 nstage = varargin{5};
-            end;
+            end
         end
     otherwise
 end
@@ -106,7 +106,7 @@ if(all(wco < 1)) % if wco is > 1 then this is not a filter!
     [b, a] = filterselect(ftype, order, wco, passtype);
     for i = 1:nstage
         w = filter(b, a, w); % filter all the traces...repeatedly
-    end;
+    end
     for i = 1:nstage
         [b, a] = filterselect('elliptic', order, wco, passtype);
         w = filter(b, a, w); % filter all the traces...repeatedly
@@ -116,21 +116,22 @@ k = length(w)/4;
 w = w(k:(length(w)/2+k)-1);
 % hw = figure();
 % plot([w(length(w)-50:end) w(1:50) ])
-if(nargout == 0)
-    hs = spectrum.yulear(1024);
-
-    h = findobj('tag', 'noise_gen_fig');
-    if(~isempty(h))
-        figure(h);
-        clf;
-        psd(hs, w, 'Fs', Fs);
-    else
-        figure('tag', 'noise_gen_fig');
-        psd(hs, w, 'Fs', Fs);
-    end;
-    set(gca, 'Xlim', [0.1 100]);
-    set(gca, 'XScale', 'log');
-end;
+% Spectrum needs to be plotted with pwelch (see NoiseExposeNI.m)
+% if(nargout == 0)
+%     hs = spectrum.yulear(1024);
+% 
+%     h = findobj('tag', 'noise_gen_fig');
+%     if(~isempty(h))
+%         figure(h);
+%         clf;
+%         psd(hs, w, 'Fs', Fs);
+%     else
+%         figure('tag', 'noise_gen_fig');
+%         psd(hs, w, 'Fs', Fs);
+%     end
+%     set(gca, 'Xlim', [0.1 100]);
+%     set(gca, 'XScale', 'log');
+% end
 
 function [b, a] = filterselect(type, order, wco, passtype)
 
@@ -146,4 +147,4 @@ switch(type)
     otherwise
         [b, a] = butter(order, wco, passtype); % butterworth
 
-end;
+end

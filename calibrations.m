@@ -199,8 +199,8 @@ switch calmode
             recordDuration = 0.2; % seconds
         end
         nRecordPoints = floor(STIM.sample_freq*recordDuration*1.5);
-        ts1 = floor(recordDuration*STIM.sample_freq*0.1);
-        ts2 = floor(recordDuration*STIM.sample_freq*0.9); % delay 100 msec, end at 900 msec
+        ts1 = floor(recordDuration*STIM.sample_freq*0.25);
+        ts2 = floor(recordDuration*STIM.sample_freq*0.75); % delay 100 msec, end at 900 msec
         fprintf(1, 'Recording Parameters: TraceDur: %7.1f s  points: %d STIM_sampleFreq: %9.3f Hz\n', ...
             recordDuration, nRecordPoints, STIM.sample_freq);
         rise_fall = 5.0; % msec
@@ -268,8 +268,8 @@ switch calmode
             ynf = bandpass(ch2nf, bpfreqs, STIM.sample_freq,...
                 'StopbandAttenuation', 60, "Steepness", 0.9);
             %             fprintf(1, "bp calculated");
-            Vrms_bp(i) = rms(ybp);
-            Vrms_nf(i) = rms(ynf);
+            Vrms_bp(i) = rms(ybp(ts1:ts2));
+            Vrms_nf(i) = rms(ynf(ts1:ts2));
             
             [amp_cosinor, fr_cosinor] = compute_cosinors(spkr_freq(i), trec(ts1:ts2), ch2(ts1:ts2));
             [~, k] = max(amp_cosinor);

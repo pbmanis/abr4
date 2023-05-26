@@ -179,25 +179,31 @@ for i_sweep = 1:STIM.NSweeps % loop over all the sweeps.
     tic % time mark
     HW = set_attn(HW, local_attn);
     pause(0.01);
-    HW.AO.stop
+    HW.AO.stop;
     HW.AO.Rate = STIM.NIFreq;
-    queueOutputData(HW.AO, STIM.wave); % wave is FULL
+    if(size(swave, 1) > 1)
+        queueOutputData(HW.AO, STIM.wave);
+    else
+        queueOutputData(HW.AO, STIM.wave');
+    end
     HW.AO.TriggersPerRun = 1; % set(AO, 'repeatoutput',  1);
+    
     set_status('Running');
-    tic
     startBackground(HW.AO); % get ni board read to go, then trigger the rp
     pause(0.1);  % give the system time to arm
     [HW, err] = rp_setup(HW, STIM, nRecordPoints+1000, 'Start');
     if err == 1
-        fprintf(2, 'Hardware failed to start\n');
+        fprintf(2, 'RP2.1 Hardware failed to start\n');
         set_status('Stopped');
         abr4('Stop', 'Error in RP setup');
         return;
     end
     recdur = nRecordPoints/STIM.sample_freq;
     curindex=HW.RP.GetTagVal('Data_index');
+    tic
     % Wait until buffer fills
     while( toc < recdur) %
+
         curindex=HW.RP.GetTagVal('Data_index');
         pause(0.01);
         state = check_status(GUI);

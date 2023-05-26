@@ -6,12 +6,14 @@ set_attn(HW, 120.0);
 if ~isempty(HW.AO) % using analog output on NI DAQ
     HW.AO.Rate = 500000.0; % always set to high sample rate
     % the 6731 card goes up to 1 MHz at 16 bits on one channel ...
-    HW.AO.Connections
+    HW.AO.Connections;
 end
+HW.AO;
+
 if strcmp(HW.HARDWARE, 'NI')  % surrogate for what system we are running on
     HW.RP=actxcontrol('rpco.x', [5 5 26 26]);
     if(HW.RP.ConnectRP2('USB',1) == 0)
-        error('failed to connect to rp2');
+        error('failed to connect to RP2.1');
     end
     STIM.NIFreq = 500000;
 end

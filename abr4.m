@@ -8,7 +8,7 @@ function [D] = abr4(varargin)
     % Main code to collect abr (Auditory Brainstem Response) data
     % Utilizing Tucker-Davis system 3 equipment and Active-X interface
     % via USB port.
-    % Requires 14-bit NI board (PCI 6731) for output signal generation.
+    % Requires 16-bit NI board (PCI 6731) for output signal generation.
 
     % OLD Calibration information:
     % Etymotic ER7C, SN 87491, fresh battery.
@@ -22,6 +22,8 @@ function [D] = abr4(varargin)
     %
     % The click generates 540 mV P-P at 20 dB attenuation
     % Referencing this to RMS
+    
+   
 
     persistent DataDirectory
     persistent HW
@@ -128,7 +130,7 @@ function [D] = abr4(varargin)
         case {'MF1'}
             CALIBRATION.SPKR.CalAttn = 20.0; % for tones...
             CALIBRATION.SPLCAL.maxtones = 110.0; % for mf1 speaker
-            CALIBRATION.SPLCAL.maxclick = 108.5; % set with peak 1/4" mic output to match 80dB spl tone at "1e-6"
+            % CALIBRATION.SPLCAL.maxclick = 108.5; % set with peak 1/4" mic output to match 80dB spl tone at "1e-6"
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %  26 January 2022 pbmanis Re-calibration of the ABR system. click
             %  calibrated by averaging the microphone waveform (click_cal.m)
@@ -138,8 +140,21 @@ function [D] = abr4(varargin)
             % or 73.6 dB SPL (requested 75). Calibrations for tone done on the
             % same day (26 Jan).
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            CALIBRATION.SPLCAL.maxclick = 90.0; % 26 Jan 2022. Note 18.5 dB difference from prior.
+            % CALIBRATION.SPLCAL.maxclick = 90.0; % 26 Jan 2022. Note 18.5 dB difference from prior.
             % 114.8; % Old calibration 2007-4/30/2010db SPL with 0 dB attenuation (5 V signal)
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Using new speaker MF1 1956
+            % recalibration on 24 April 2023.
+            % Click calibration done using peSPL method Burkard, 2006
+            % with click_cal.m (run abr4, then run click_cal.m, uses latest speaker calibration file)
+            % compared with John Grose's Larsen Davis meter.
+            % Click voltage -96 mV, p-p 174 mV
+            % 16 kHz, equivalent 103 dB SPL
+            % 12 kHz, equivalend 103 dB SPL
+            % 8 kHz, equivalent 108 dB SPL.
+            % use 103 as 0 dB spl level.
+            CALIBRATION.SPLCAL.maxclick = 105.1;
+            
         otherwise
             fprintf(2, 'Speaker type not known\n');
             return;
@@ -319,8 +334,7 @@ function [D] = abr4(varargin)
             set(GUI.hcurrentfrequency, 'String', 'Click');
 
             if strcmp(cmd, 'click_test')
-%                 spllist = [75, 75, 75, 75, 75, 75, 75, 75, 75, 75];
-                spllist = [90, 90, 90, 90, 90, 90, 90, 90, 90, 90];
+                spllist = ones(1, 10)*90;
                 nspl = length(spllist);
                 mode = 'test';
 
@@ -437,8 +451,8 @@ function [D] = abr4(varargin)
             hstat = findobj('tag', 'ABR_Status');
 
             if strcmp(cmd, 'tone_test')
-                spllist = [90, 90, 90, 90, 90, 90, 90, 90, 90, 90];
-                fr = [8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000];
+                spllist = ones(1, 10)*90;  % 90
+                fr = ones(1, 10)*8000;  % 8000
                 mode = 'test';
             elseif strcmp(cmd, 'tone_info')
                 nspl = length(STIM.spls);
