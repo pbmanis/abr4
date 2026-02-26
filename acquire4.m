@@ -33,6 +33,11 @@ function [data, STIM, chdata, err] = acquire4(cmd, HW, STIM, PLOTS, GUI, CALIBRA
 % Removing globals (new branch 'no-globals'). All data structures are
 % defined as 'persistent' in abr4. Structures are defined in classes.
 %
+% 19 April 2024 P. Manis
+% check sample rate with 1 kHz sine wave,
+% and the time display is wrong (2x too slow, so 2 msec are plotted into
+% each msec).
+% Not sure where this crept in. 
 %--------------------------------------------------------------------------
 %Tessa's variable (saving raw data):
 rawdata=[];
@@ -48,7 +53,9 @@ chdata = [];
 if nargin > 0 && (strcmp(cmd, 'microphone') ...
         || strcmp(cmd, 'microphone104') ...
         || strcmp(cmd, 'calibrate') ...
-        || strcmp(cmd, 'checkcal'))
+        || strcmp(cmd, 'checkcal') ...
+        || strcmp(cmd, 'noise_floor') ...
+        )
     if isempty(HW.AO) % only do this if we are using NI
         return;
     end
@@ -82,7 +89,7 @@ else
 end
 nStimPoints = floor((STIM.StimPerSweep*STIM.ipi/1000)*STIM.NIFreq);
 InterpFreq = 100000;
-
+fprintf(1, 'acquire4 - true sample frequency: %.6f hz  interp_freq:%.6fHz\n',STIM.sample_freq, InterpFreq);
 timebase_Stim = 0:1/STIM.NIFreq:(nStimPoints-1)/STIM.NIFreq; % express rate in msec
 timebase_Record = 0:(1/STIM.sample_freq):(nRecordPoints-1)/STIM.sample_freq;
 stimBlockLen = floor(STIM.ipi/1000*STIM.NIFreq);

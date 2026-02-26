@@ -24,7 +24,7 @@ startBackground(HW.AO); % get ni board read to go, then trigger the rp
 
 HW.RP.SoftTrg(1); % start.
 
-TraceDuration = nRecordPoints/STIM.sample_freq;
+TraceDuration = nRecordPoints/HW.RP.GetSFreq();
 curindex=HW.RP.GetTagVal('Index');
 lastindex = curindex;
 

@@ -162,8 +162,10 @@ function [D] = abr4(varargin)
 
     % Handle the gui callbacks.
     cmd = varargin{1};
-    fprintf(2, "cmd: %s\n", cmd);
-
+    fprintf(2, "gui callback cmd: %s\n", cmd);
+    if (length(cmd) < 1)
+        return;
+    end
     switch (cmd)
         case 'quit' % do a clean shutdown
             close(PARS.ABR4_FIG);
@@ -215,7 +217,7 @@ function [D] = abr4(varargin)
                 set(GUI.hstimfilename, 'String', FileName);
             end
 
-        case {'calibrate', 'microphone', 'microphone104', 'checkcal'}
+        case {'calibrate', 'microphone', 'microphone104', 'checkcal', 'noise_floor'}
             % access calibration routines.
             acquire4(cmd, HW, STIM, PLOTS, GUI, CALIBRATION);
 
@@ -451,8 +453,8 @@ function [D] = abr4(varargin)
             hstat = findobj('tag', 'ABR_Status');
 
             if strcmp(cmd, 'tone_test')
-                spllist = ones(1, 10)*90;  % 90
-                fr = ones(1, 10)*8000;  % 8000
+                spllist = ones(1, 10)*94;  % 90
+                fr = ones(1, 10)*4000;  % 8000
                 mode = 'test';
             elseif strcmp(cmd, 'tone_info')
                 nspl = length(STIM.spls);
@@ -713,7 +715,8 @@ function [DATA, STIM, HW, err] = tone_map(mode, freq, spl, HW, CALIBRATION, STIM
     STIM = updateStimParams(STIM, GUI);
     % interpolate to get the attenuation at the requested frequency
     [splatF] = soundfuncs.spl_at_f(CALIBRATION.SPKR.Freqs, CALIBRATION.SPKR.maxdB, freq);
-
+  %  CALIBRATION
+    
     % splatF=interp1(CALIBRATION.SPKR.Freqs, CALIBRATION.SPKR.maxdB, freq, 'spline');
     attn = splatF - spl;
 
