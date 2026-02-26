@@ -7,8 +7,8 @@ function [rmap, freqs, levels] = ABRA_1(arg)
 if(nargin == 0)
     return;
 end
-sr=2/100000; % 4/97635;
-maxt = 8;
+sr=2./100000.; % 4/97635;
+maxt = 20;
 persistent abr_path
 persistent filename
 persistent t
@@ -36,6 +36,7 @@ switch(arg)
         [p, f] = fileparts(filename);
         %        fb = f(1:(length(f)-2));
         fb = f(1:14);
+        fprintf(1, "fb: %s", fb)
         fe = f(16:end);
         fn = [pathname fb 'n' fe '.txt'];
         fp = [pathname fb 'p' fe '.txt']; % make filenames for both polarities, regardless of which one was picked.
